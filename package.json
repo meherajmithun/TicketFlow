@@ -1,0 +1,21 @@
+{
+  "name": "ticketflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/api", "apps/web"],
+  "scripts": {
+    "dev:api": "npm run dev -w @ticketflow/api",
+    "dev:web": "npm run dev -w @ticketflow/web",
+    "build": "npm run build -w @ticketflow/api && npm run build -w @ticketflow/web",
+    "typecheck": "npm run typecheck -w @ticketflow/api && npm run typecheck -w @ticketflow/web",
+    "lint": "npm run lint -w @ticketflow/api && npm run lint -w @ticketflow/web",
+    "test": "npm run test -w @ticketflow/api",
+    "test:coverage": "npm run test:coverage -w @ticketflow/api"
+  },
+  "devDependencies": {
+    "eslint": "^9.25.1",
+    "typescript-eslint": "^8.29.0"
+  },
+  "engines": { "node": ">=22" }
+}
