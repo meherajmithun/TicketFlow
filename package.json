@@ -7,6 +7,7 @@
   "scripts": {
     "dev:api": "npm run dev -w @ticketflow/api",
     "dev:web": "npm run dev -w @ticketflow/web",
+    "db:migrate": "npm run db:migrate -w @ticketflow/api",
     "build": "npm run build -w @ticketflow/api && npm run build -w @ticketflow/web",
     "typecheck": "npm run typecheck -w @ticketflow/api && npm run typecheck -w @ticketflow/web",
     "lint": "npm run lint -w @ticketflow/api && npm run lint -w @ticketflow/web",
