@@ -1,5 +1,10 @@
-import 'dotenv/config';
+import { config as loadDotEnv } from 'dotenv';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+
+// npm workspaces run API scripts with apps/api as the working directory.
+// Resolve the shared environment file from this module so dev and migrations agree.
+loadDotEnv({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) });
 
 const environment = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
