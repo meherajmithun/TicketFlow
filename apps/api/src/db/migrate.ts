@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
