@@ -382,7 +382,8 @@ button {
   border:1px solid #dce4f5;
   border-radius:12px;
   box-shadow:0 17px 40px #263c8010;
-  padding:12px 12px 12px 20px}
+  padding:12px 12px 12px 20px;
+  position:relative}
 
 .search label {
   display:block;
@@ -427,6 +428,38 @@ button {
 
 .search button span {
   margin-left:9px}
+
+.search-suggestions {
+  background:#fff;
+  border:1px solid #dce4f5;
+  border-radius:10px;
+  box-shadow:0 18px 35px #263c8020;
+  left:20px;
+  overflow:hidden;
+  position:absolute;
+  right:12px;
+  top:100%;
+  z-index:4}
+
+.search-suggestions button {
+  align-items:center;
+  background:#fff;
+  border:0;
+  border-bottom:1px solid #eef1f8;
+  color:#172443;
+  display:flex;
+  gap:11px;
+  padding:13px 15px;
+  text-align:left;
+  width:100%}
+
+.search-suggestions button:last-child { border-bottom:0 }
+.search-suggestions button:hover { background:#f7f9ff }
+.suggestion-icon { color:#ee785f; font-size:17px }
+.search-suggestions button span:last-child { display:flex; flex-direction:column; gap:3px }
+.search-suggestions strong { font-size:13px }
+.search-suggestions small { color:#8290a8; font-size:11px }
+.no-suggestions { color:#8290a8; font-size:12px; margin:0; padding:15px }
 
 .hero-visual {
   position:relative;
@@ -652,6 +685,14 @@ button {
 
 }
 
+.public-event-grid { display:grid; gap:14px; grid-template-columns:repeat(3,1fr) }
+.public-event-card { background:#fff; border:1px solid #dce4f5; border-radius:12px; padding:22px; transition:box-shadow .2s,transform .2s }
+.public-event-card:hover { box-shadow:0 14px 30px #263c8014; transform:translateY(-3px) }
+.public-event-top { color:#8290a8; display:flex; font-size:10px; font-weight:700; justify-content:space-between; letter-spacing:1px }
+.public-event-card h3 { font:600 22px 'Space Grotesk',sans-serif; letter-spacing:-.7px; margin:25px 0 7px }
+.public-event-card p { color:#64718c; font-size:13px; margin:0 }
+.public-event-meta { border-top:1px solid #eef1f8; color:#8290a8; display:flex; font-size:11px; justify-content:space-between; margin-top:22px; padding-top:14px }
+
 @media (max-width:720px) {
   .site-header { height:auto; padding:22px 20px; flex-wrap:wrap }
   .site-header nav { order:3; width:100%; justify-content:center; gap:24px }
@@ -669,6 +710,7 @@ button {
   .form-row { grid-template-columns:1fr }
   .form-field-small { max-width:none }
   .category-row { grid-template-columns:22px 1fr 95px 20px }
+  .public-event-grid { grid-template-columns:1fr }
 }
 
 @media(max-width:600px) {

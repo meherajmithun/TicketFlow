@@ -22,6 +22,7 @@ type OrganizerEvent = {
   id: string; name: string; description: string; startsAt: string; status: 'draft' | 'published' | 'cancelled';
   venue: Venue; categories: Array<{ name: string; basePriceCents: number }>; seats: Array<{ available: boolean }>;
 };
+type BrowseEvent = { id: string; name: string; description: string; startsAt: string; venue: Venue; categories: Array<{ name: string; basePriceCents: number }>; seats: Array<{ available: boolean }> };
 
 async function apiRequest<T>(path: string, token: string, options: RequestInit = {}) {
   const response = await fetch(`${API_URL}${path}`, {
@@ -30,6 +31,13 @@ async function apiRequest<T>(path: string, token: string, options: RequestInit =
   });
   const payload = await response.json() as T & { error?: { message?: string } };
   if (!response.ok) throw new Error(payload.error?.message ?? 'Could not complete that action');
+  return payload;
+}
+
+async function publicRequest<T>(path: string) {
+  const response = await fetch(`${API_URL}${path}`);
+  const payload = await response.json() as T & { error?: { message?: string } };
+  if (!response.ok) throw new Error(payload.error?.message ?? 'Could not load events');
   return payload;
 }
 
@@ -151,6 +159,9 @@ function OrganizerDashboard({ session }: { session: Session }) {
 export function App() {
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
+  const [publicEvents, setPublicEvents] = useState<BrowseEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [searchFocused, setSearchFocused] = useState(false);
   const [session, setSession] = useState<Session | null>(() => {
     const saved = localStorage.getItem('ticketflow-session');
     return saved ? JSON.parse(saved) as Session : null;
@@ -164,6 +175,13 @@ export function App() {
     if (session) localStorage.setItem('ticketflow-session', JSON.stringify(session));
     else localStorage.removeItem('ticketflow-session');
   }, [session]);
+
+  useEffect(() => {
+    void publicRequest<{ events: BrowseEvent[] }>('/events')
+      .then((payload) => setPublicEvents(payload.events))
+      .catch(() => setPublicEvents([]))
+      .finally(() => setEventsLoading(false));
+  }, []);
 
   function openAuth(mode: 'login' | 'register') {
     setAuthMode(mode);
@@ -197,8 +215,14 @@ export function App() {
   function searchEvents(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmittedQuery(query.trim());
+    setSearchFocused(false);
     document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
   }
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchingEvents = publicEvents.filter((event) => `${event.name} ${event.venue.city} ${event.venue.name}`.toLowerCase().includes(normalizedQuery));
+  const suggestedEvents = normalizedQuery ? matchingEvents : publicEvents;
+  const visibleEvents = submittedQuery ? publicEvents.filter((event) => `${event.name} ${event.venue.city} ${event.venue.name}`.toLowerCase().includes(submittedQuery.toLowerCase())) : publicEvents;
 
   return (
     <div className="site-shell">
@@ -235,9 +259,10 @@ export function App() {
               <label htmlFor="event-search">What are you looking for?</label>
               <div className="search-row">
                 <span className="search-icon" aria-hidden="true">⌕</span>
-                <input id="event-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search events or cities" />
+                <input id="event-search" value={query} onFocus={() => setSearchFocused(true)} onChange={(event) => { setQuery(event.target.value); setSearchFocused(true); }} placeholder="Search events or cities" />
                 <button type="submit">Search <span aria-hidden="true">→</span></button>
               </div>
+              {searchFocused && <div className="search-suggestions" role="listbox" aria-label="Available events">{suggestedEvents.length ? suggestedEvents.slice(0, 5).map((event) => <button type="button" role="option" key={event.id} onMouseDown={(clickEvent) => clickEvent.preventDefault()} onClick={() => { setQuery(event.name); setSubmittedQuery(event.name); setSearchFocused(false); document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' }); }}><span className="suggestion-icon">↗</span><span><strong>{event.name}</strong><small>{event.venue.city} · {new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></span></button>) : <p className="no-suggestions">No published events match yet.</p>}</div>}
             </form>
           </div>
           <div className="hero-visual">
@@ -249,13 +274,7 @@ export function App() {
 
         <section className="events-section" id="events" aria-labelledby="events-title">
           <div className="section-heading"><div><span className="section-kicker">DISCOVER</span><h2 id="events-title">Upcoming events</h2></div><span className="section-line" /></div>
-          <div className="empty-events">
-            <div className="empty-symbol" aria-hidden="true">✳</div>
-            <div>
-              <h3>{submittedQuery ? `No events found for “${submittedQuery}”` : 'The calendar is getting ready.'}</h3>
-              <p>{submittedQuery ? 'Try another event name or city when events are available.' : 'Events will appear here as soon as organizers publish them.'}</p>
-            </div>
-          </div>
+          {eventsLoading ? <div className="empty-events"><div className="empty-symbol" aria-hidden="true">↗</div><div><h3>Finding the next good night.</h3><p>Loading published events.</p></div></div> : visibleEvents.length ? <div className="public-event-grid">{visibleEvents.map((event) => <article className="public-event-card" key={event.id}><div className="public-event-top"><span className="event-status published">UPCOMING</span><span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}</span></div><h3>{event.name}</h3><p>{event.venue.name} · {event.venue.city}</p><div className="public-event-meta"><span>{event.seats.filter((seat) => seat.available).length} seats available</span><span>From {Math.min(...event.categories.map((category) => category.basePriceCents))}</span></div></article>)}</div> : <div className="empty-events"><div className="empty-symbol" aria-hidden="true">✳</div><div><h3>{submittedQuery ? `No events found for “${submittedQuery}”` : 'The calendar is getting ready.'}</h3><p>{submittedQuery ? 'Try another event name or city when events are available.' : 'Published events will appear here as soon as organizers add them.'}</p></div></div>}
         </section>
 
         <section className="how-section" id="how-it-works" aria-labelledby="how-title">
