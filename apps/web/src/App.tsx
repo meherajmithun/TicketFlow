@@ -172,7 +172,7 @@ export function App() {
               <label htmlFor="auth-email">Email address</label>
               <input id="auth-email" name="email" type="email" autoComplete="email" required placeholder="you@example.com" />
               <label htmlFor="auth-password">Password</label>
-              <input id="auth-password" name="password" type="password" autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} minLength={12} required placeholder="At least 12 characters" />
+              <input id="auth-password" name="password" type="password" autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} minLength={5} required placeholder="At least 5 characters" />
               {authMode === 'register' && <>
                 <label htmlFor="auth-role">I am joining as</label>
                 <select id="auth-role" name="role" defaultValue="customer">

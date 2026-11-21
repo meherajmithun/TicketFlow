@@ -33,7 +33,7 @@ The migration runner records applied SQL files in `schema_migrations`, so runnin
 
 | Route | Body or header | Result |
 | --- | --- | --- |
-| `POST /auth/register` | JSON: `email`, `password` (12–128 characters), `role` (`organizer` or `customer`) | `201` with a user and bearer token |
+| `POST /auth/register` | JSON: `email`, `password` (5–128 characters), `role` (`organizer` or `customer`) | `201` with a user and bearer token |
 | `POST /auth/login` | JSON: `email`, `password` | User and bearer token |
 | `GET /auth/me` | `Authorization: Bearer <token>` | Authenticated user ID and role |
 
