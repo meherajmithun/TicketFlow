@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import type { CreateEventInput, CreateVenueInput, Event, Venue } from './types.js';
+import type { CreateEventInput, CreateVenueInput, Event, EventPage, EventSearch, Venue } from './types.js';
 export type { CreateEventInput, CreateVenueInput } from './types.js';
 
 export interface EventRepository {
@@ -9,7 +9,7 @@ export interface EventRepository {
   listOrganizerEvents(organizerId: string): Promise<Event[]>;
   findOrganizerEvent(organizerId: string, eventId: string): Promise<Event | null>;
   updateEventStatus(organizerId: string, eventId: string, status: 'published' | 'cancelled'): Promise<Event | null>;
-  listPublishedEvents(): Promise<Event[]>;
+  listPublishedEvents(search: EventSearch): Promise<EventPage>;
   findPublishedEvent(eventId: string): Promise<Event | null>;
 }
 
@@ -122,8 +122,17 @@ export class PgEventRepository implements EventRepository {
     return this.findOrganizerEvent(organizerId, eventId);
   }
 
-  async listPublishedEvents(): Promise<Event[]> {
-    return this.findMany("e.status = 'published' AND e.starts_at > now()", []);
+  async listPublishedEvents(search: EventSearch): Promise<EventPage> {
+    const filters = ["e.status = 'published'", 'e.starts_at > now()'];
+    const params: unknown[] = [];
+    if (search.query) { params.push(`%${search.query}%`); filters.push(`(e.name ILIKE $${params.length} OR e.description ILIKE $${params.length})`); }
+    if (search.city) { params.push(`%${search.city}%`); filters.push(`v.city ILIKE $${params.length}`); }
+    if (search.date) { params.push(search.date); filters.push(`e.starts_at::date = $${params.length}::date`); }
+    const count = await this.pool.query<{ count: string }>(`SELECT count(*) FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${filters.join(' AND ')}`, params);
+    const total = Number(count.rows[0]?.count ?? 0);
+    params.push(search.pageSize, (search.page - 1) * search.pageSize);
+    const events = await this.findMany(`${filters.join(' AND ')} LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
+    return { events, total, page: search.page, pageSize: search.pageSize, totalPages: Math.ceil(total / search.pageSize) };
   }
 
   async findPublishedEvent(eventId: string): Promise<Event | null> {

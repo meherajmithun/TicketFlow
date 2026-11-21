@@ -1,4 +1,5 @@
 import type { CreateEventInput, CreateVenueInput, EventRepository } from './repository.js';
+import type { EventSearch } from './types.js';
 
 export class EventError extends Error {
   constructor(public readonly code: 'VENUE_NOT_FOUND' | 'EVENT_NOT_FOUND' | 'NOT_OWNER') {
@@ -42,8 +43,8 @@ export class EventService {
     return event;
   }
 
-  listPublishedEvents() {
-    return this.events.listPublishedEvents();
+  listPublishedEvents(search: EventSearch) {
+    return this.events.listPublishedEvents(search);
   }
 
   async getPublishedEvent(eventId: string) {

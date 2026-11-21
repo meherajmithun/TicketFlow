@@ -49,8 +49,10 @@ Organizer routes require an organizer bearer token. An organizer can only list a
 | `GET /events/organizer` | List the authenticated organizer's events |
 | `GET /events/organizer/:eventId` | Retrieve an owned event and its seats |
 | `PATCH /events/organizer/:eventId/status` | Publish or cancel an owned event |
-| `GET /events` | Browse future published events |
+| `GET /events` | Browse future published events with optional `q`, `city`, `date`, `page`, and `pageSize` filters |
 | `GET /events/:eventId` | View one future published event and its seats |
+| `POST /bookings/holds` | Customer-only five-minute hold for selected seat IDs |
+| `GET /bookings` | List the authenticated customer's bookings and holds |
 
 Tokens expire after 12 hours. Passwords are stored as salted scrypt hashes. The role guard is ready for organizer and customer routes, but no event or booking routes exist yet.
 

@@ -4,10 +4,12 @@ import { z } from 'zod';
 import type { AppConfig } from './config.js';
 import { AuthError, type AuthService } from './auth/service.js';
 import { loginSchema, registerSchema, requireAuth } from './auth/http.js';
-import { createEventSchema, eventStatusSchema, venueSchema } from './events/http.js';
+import { createEventSchema, eventSearchSchema, eventStatusSchema, venueSchema } from './events/http.js';
 import { EventError, EventService } from './events/service.js';
+import { holdSeatsSchema } from './booking/http.js';
+import { BookingError, BookingService } from './booking/service.js';
 
-export function createApp(config: AppConfig, auth: AuthService, events?: EventService) {
+export function createApp(config: AppConfig, auth: AuthService, events?: EventService, bookings?: BookingService) {
   const app = express();
   app.disable('x-powered-by');
   app.use(cors({ origin: config.clientOrigin }));
@@ -105,12 +107,29 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     });
 
     app.get('/events', async (_request, response, next) => {
-      try { response.json({ events: await events.listPublishedEvents() }); }
+      try {
+        const search = eventSearchSchema.parse(_request.query);
+        response.json(await events.listPublishedEvents({ query: search.q, city: search.city, date: search.date, page: search.page, pageSize: search.pageSize }));
+      }
       catch (error) { next(error); }
     });
 
     app.get('/events/:eventId', async (request, response, next) => {
       try { response.json({ event: await events.getPublishedEvent(request.params.eventId!) }); }
+      catch (error) { next(error); }
+    });
+  }
+
+  if (bookings) {
+    const customerAuth = requireAuth(config.authTokenSecret, 'customer');
+    app.post('/bookings/holds', customerAuth, async (request, response, next) => {
+      try {
+        const input = holdSeatsSchema.parse(request.body);
+        response.status(201).json({ booking: await bookings.holdSeats(response.locals.auth.sub, input.eventId, input.seatIds) });
+      } catch (error) { next(error); }
+    });
+    app.get('/bookings', customerAuth, async (_request, response, next) => {
+      try { response.json({ bookings: await bookings.listCustomerBookings(response.locals.auth.sub) }); }
       catch (error) { next(error); }
     });
   }
@@ -131,6 +150,10 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     }
     if (error instanceof EventError) {
       response.status(error.code === 'NOT_OWNER' ? 403 : 404).json({ error: { code: error.code, message: error.message } });
+      return;
+    }
+    if (error instanceof BookingError) {
+      response.status(error.code === 'SEATS_NOT_AVAILABLE' ? 409 : 404).json({ error: { code: error.code, message: error.message } });
       return;
     }
     console.error(error);

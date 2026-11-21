@@ -38,6 +38,9 @@ export type Event = {
   seats: EventSeat[];
 };
 
+export type EventSearch = { query?: string; city?: string; date?: string; page: number; pageSize: number };
+export type EventPage = { events: Event[]; total: number; page: number; pageSize: number; totalPages: number };
+
 export type CreateVenueInput = Omit<Venue, 'id' | 'organizerId'>;
 export type CreateEventInput = {
   organizerId: string;

@@ -144,6 +144,32 @@ button {
   position:relative;
   width:100%}
 
+.booking-modal {
+  background:#fff;
+  border-radius:20px;
+  box-shadow:0 28px 90px #17244340;
+  max-width:700px;
+  padding:42px;
+  position:relative;
+  width:100%}
+.booking-modal h2 { font:700 40px/1.05 'Space Grotesk',sans-serif; letter-spacing:-2px; margin:15px 0 8px }
+.booking-meta { color:#64718c; font-size:14px; margin:0 0 26px }
+.booking-stage { background:#e8eeff; border:2px solid #8aa2ef; border-bottom:0; border-radius:50% 50% 0 0/100% 100% 0 0; color:#4163d8; font-size:11px; font-weight:700; letter-spacing:2px; margin:0 auto 25px; max-width:370px; padding:13px; text-align:center }
+.seat-picker { background:#f7f9ff; border-radius:12px; display:grid; gap:10px; padding:20px 15px }
+.seat-row { align-items:center; display:grid; gap:12px; grid-template-columns:22px 1fr }
+.seat-row>span { color:#8290a8; font-size:11px; font-weight:700 }
+.seat-row>div { display:flex; flex-wrap:wrap; gap:8px }
+.picker-seat { background:#dbe4fb; border:0; border-radius:5px 5px 8px 8px; color:#4163d8; cursor:pointer; font-size:10px; font-weight:700; height:32px; width:32px }
+.picker-seat:hover,.picker-seat.chosen { background:#ee785f; color:#fff; transform:translateY(-2px) }
+.picker-seat.unavailable { background:#d7dce8; color:#a2acc0; cursor:not-allowed; opacity:.75 }
+.booking-footer { align-items:center; border-top:1px solid #dce4f5; display:flex; justify-content:space-between; margin-top:22px; padding-top:20px }
+.booking-footer>div { display:flex; flex-direction:column; gap:5px; color:#8290a8; font-size:13px }
+.booking-footer strong { color:#172443; font:600 19px 'Space Grotesk',sans-serif }
+.hold-confirmation { align-items:center; background:#edfaf4; border-left:4px solid #27815f; border-radius:8px; color:#27815f; display:flex; gap:14px; margin:30px 0; padding:18px }
+.hold-icon { align-items:center; background:#27815f; border-radius:50%; color:#fff; display:flex; font-weight:700; height:30px; justify-content:center; width:30px }
+.hold-confirmation strong { color:#172443; font:600 18px 'Space Grotesk',sans-serif }
+.hold-confirmation p { color:#64718c; font-size:13px; margin:5px 0 0 }.hold-confirmation b { color:#27815f }
+
 .modal-close {
   background:none;
   border:0;
@@ -690,7 +716,7 @@ button {
 
 .public-event-grid { display:grid; gap:14px; grid-template-columns:repeat(3,1fr) }
 .public-event-card { background:#fff; border:1px solid #dce4f5; border-radius:12px; padding:22px; transition:box-shadow .2s,transform .2s }
-.public-event-card:hover { box-shadow:0 14px 30px #263c8014; transform:translateY(-3px) }
+.public-event-card { cursor:pointer }.public-event-card:hover { box-shadow:0 14px 30px #263c8014; transform:translateY(-3px) }
 .public-event-top { color:#8290a8; display:flex; font-size:10px; font-weight:700; justify-content:space-between; letter-spacing:1px }
 .public-event-card h3 { font:600 22px 'Space Grotesk',sans-serif; letter-spacing:-.7px; margin:25px 0 7px }
 .public-event-card p { color:#64718c; font-size:13px; margin:0 }
@@ -702,6 +728,10 @@ button {
   .account-greeting { display:none }
   .account-actions,.account-menu { gap:11px }
   .auth-modal { padding:34px 24px }
+  .booking-modal { padding:34px 24px }
+  .booking-modal h2 { font-size:32px }
+  .booking-footer { align-items:stretch; flex-direction:column; gap:16px }
+  .booking-footer .primary-button { width:100% }
   .studio-shell { padding:42px 20px 70px }
   .studio-intro { align-items:flex-start; gap:25px; margin-bottom:40px }
   .studio-intro h1 { font-size:48px; letter-spacing:-3px }
