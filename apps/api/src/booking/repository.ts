@@ -1,11 +1,12 @@
 import type { Pool } from 'pg';
-import type { Cancellation, CustomerBooking, HeldBooking } from './types.js';
+import type { BookingTransition, Cancellation, CustomerBooking, HeldBooking, StatusHistoryEntry } from './types.js';
 import { priceSeat } from '../domain/pricing.js';
 import { refundAmountCents } from '../domain/refund.js';
+import { transitionBooking } from '../domain/booking.js';
 
 export class BookingError extends Error {
-  constructor(public readonly code: 'EVENT_NOT_FOUND' | 'SEATS_NOT_AVAILABLE' | 'SEAT_NOT_IN_EVENT' | 'BOOKING_NOT_FOUND' | 'BOOKING_NOT_ACTIVE') {
-    super(code === 'EVENT_NOT_FOUND' ? 'Published event not found' : code === 'SEAT_NOT_IN_EVENT' ? 'One or more seats do not belong to this event' : code === 'BOOKING_NOT_FOUND' ? 'Booking not found' : code === 'BOOKING_NOT_ACTIVE' ? 'Booking is already cancelled or expired' : 'One or more seats are already held or booked');
+  constructor(public readonly code: 'EVENT_NOT_FOUND' | 'SEATS_NOT_AVAILABLE' | 'SEAT_NOT_IN_EVENT' | 'BOOKING_NOT_FOUND' | 'BOOKING_NOT_ACTIVE' | 'INVALID_TRANSITION') {
+    super(code === 'EVENT_NOT_FOUND' ? 'Published event not found' : code === 'SEAT_NOT_IN_EVENT' ? 'One or more seats do not belong to this event' : code === 'BOOKING_NOT_FOUND' ? 'Booking not found' : code === 'BOOKING_NOT_ACTIVE' ? 'Booking is already cancelled or expired' : code === 'INVALID_TRANSITION' ? 'That booking status transition is not allowed' : 'One or more seats are already held or booked');
   }
 }
 
@@ -66,12 +67,12 @@ export class PgBookingRepository {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const result = await client.query<{ id: string; status: 'held' | 'confirmed' | 'expired' | 'cancelled'; total_cents: number; starts_at: Date }>(
+      const result = await client.query<{ id: string; status: 'held' | 'pending_payment' | 'confirmed' | 'expired' | 'cancelled'; total_cents: number; starts_at: Date }>(
         `SELECT b.id, b.status, b.total_cents, e.starts_at FROM bookings b JOIN events e ON e.id = b.event_id WHERE b.id = $1 AND b.customer_id = $2 FOR UPDATE`, [bookingId, customerId],
       );
       const booking = result.rows[0];
       if (!booking) throw new BookingError('BOOKING_NOT_FOUND');
-      if (booking.status !== 'held' && booking.status !== 'confirmed') throw new BookingError('BOOKING_NOT_ACTIVE');
+      if (booking.status !== 'held' && booking.status !== 'pending_payment' && booking.status !== 'confirmed') throw new BookingError('BOOKING_NOT_ACTIVE');
       const cancelledAt = new Date();
       const refundCents = booking.status === 'confirmed' ? refundAmountCents(booking.total_cents, booking.starts_at, cancelledAt) : 0;
       await client.query(`UPDATE bookings SET status = 'cancelled', updated_at = now() WHERE id = $1`, [bookingId]);
@@ -83,5 +84,48 @@ export class PgBookingRepository {
       await client.query('ROLLBACK');
       throw error;
     } finally { client.release(); }
+  }
+
+  async transitionBooking(customerId: string, bookingId: string, toStatus: 'pending_payment' | 'confirmed'): Promise<BookingTransition> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query<{ status: 'held' | 'pending_payment' | 'confirmed' | 'expired' | 'cancelled'; hold_expires_at: Date | null }>(
+        'SELECT status, hold_expires_at FROM bookings WHERE id = $1 AND customer_id = $2 FOR UPDATE', [bookingId, customerId],
+      );
+      const booking = result.rows[0];
+      if (!booking) throw new BookingError('BOOKING_NOT_FOUND');
+      if (booking.hold_expires_at && booking.hold_expires_at.getTime() <= Date.now()) throw new BookingError('BOOKING_NOT_ACTIVE');
+      try { transitionBooking(booking.status, toStatus); } catch { throw new BookingError('INVALID_TRANSITION'); }
+      await client.query(`UPDATE bookings SET status = $2, updated_at = now() WHERE id = $1`, [bookingId, toStatus]);
+      if (toStatus === 'confirmed') await client.query(`UPDATE event_seats SET hold_expires_at = NULL, confirmed_at = now() WHERE current_booking_id = $1`, [bookingId]);
+      await client.query(`INSERT INTO booking_status_history (booking_id, from_status, to_status) VALUES ($1, $2, $3)`, [bookingId, booking.status, toStatus]);
+      await client.query('COMMIT');
+      return { bookingId, status: toStatus };
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+  }
+
+  async expireHolds(): Promise<number> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const expired = await client.query<{ id: string; status: 'held' | 'pending_payment' }>(`SELECT id, status FROM bookings WHERE status IN ('held', 'pending_payment') AND hold_expires_at <= now() FOR UPDATE SKIP LOCKED`);
+      for (const booking of expired.rows) {
+        await client.query(`UPDATE bookings SET status = 'expired', updated_at = now() WHERE id = $1`, [booking.id]);
+        await client.query(`UPDATE event_seats SET current_booking_id = NULL, hold_expires_at = NULL, confirmed_at = NULL WHERE current_booking_id = $1`, [booking.id]);
+        await client.query(`INSERT INTO booking_status_history (booking_id, from_status, to_status) VALUES ($1, $2, 'expired')`, [booking.id, booking.status]);
+      }
+      await client.query('COMMIT');
+      return expired.rowCount ?? 0;
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+  }
+
+  async statusHistory(customerId: string, bookingId: string): Promise<StatusHistoryEntry[]> {
+    const owner = await this.pool.query('SELECT 1 FROM bookings WHERE id = $1 AND customer_id = $2', [bookingId, customerId]);
+    if (!owner.rowCount) throw new BookingError('BOOKING_NOT_FOUND');
+    const result = await this.pool.query<StatusHistoryEntry>(`SELECT from_status AS "fromStatus", to_status AS "toStatus", changed_at AS "changedAt" FROM booking_status_history WHERE booking_id = $1 ORDER BY changed_at ASC, id ASC`, [bookingId]);
+    return result.rows.map((entry) => ({ ...entry, changedAt: new Date(entry.changedAt).toISOString() }));
   }
 }

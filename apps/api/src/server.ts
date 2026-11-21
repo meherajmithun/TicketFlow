@@ -16,8 +16,10 @@ const bookings = new BookingService(new PgBookingRepository(pool));
 const server = createApp(config, auth, events, bookings).listen(config.port, () => {
   console.info(`TicketFlow API listening on port ${config.port}`);
 });
+const expiryTimer = setInterval(() => { void bookings.expireHolds(); }, 30_000);
 
 async function shutdown() {
+  clearInterval(expiryTimer);
   server.close();
   await pool.end();
 }

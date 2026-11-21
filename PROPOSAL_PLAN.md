@@ -8,7 +8,7 @@ The project PDF requires a live event booking system, not only a UI or schema. I
 | Event management | Organizer-owned venue/event APIs plus organizer dashboard for venue, date-time, seat-map, category, and price setup | Add event editing/cancellation workflows |
 | Browse and search | Database-backed public event cards, suggestions, and name/city/date filters with pagination | Add richer filter controls and event detail navigation |
 | Seat holds and no double booking | Customer seat picker and five-minute transactional holds with PostgreSQL row locks | Add explicit expiry cleanup job and two-user PostgreSQL race test |
-| Booking lifecycle | Pure transition rule and status-history table | Booking service, status history, and ownership checks |
+| Booking lifecycle | Held → pending payment → confirmed/expired/cancelled transitions, history, expiry cleanup, and customer controls | Connect real payment attempts and notifications |
 | Payments | Idempotency constraint in SQL | Two mock providers behind one interface and retry-safe payment attempts |
 | Pricing | Organizer selects base or early-bird per event; selected strategy is applied during a hold and persisted per seat | Add pricing display refinement during checkout |
 | Notifications | SQL table only | In-app notifications and console email adapters |

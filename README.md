@@ -54,6 +54,9 @@ Organizer routes require an organizer bearer token. An organizer can only list a
 | `POST /bookings/holds` | Customer-only five-minute hold for selected seat IDs |
 | `GET /bookings` | List the authenticated customer's bookings and holds |
 | `POST /bookings/:bookingId/cancel` | Cancel an owned held/confirmed booking and calculate its refund |
+| `POST /bookings/:bookingId/payment` | Move an owned held booking to pending payment |
+| `POST /bookings/:bookingId/confirm` | Confirm an owned pending-payment booking through the mock payment step |
+| `GET /bookings/:bookingId/history` | Read the owned booking's status history |
 
 Tokens expire after 12 hours. Passwords are stored as salted scrypt hashes. The role guard is ready for organizer and customer routes, but no event or booking routes exist yet.
 

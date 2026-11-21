@@ -339,6 +339,7 @@ button {
 .primary-button { background:#4163d8; border:0; border-radius:8px; color:#fff; font-size:15px; font-weight:700; padding:15px 22px }
 .primary-button:hover { background:#294abf }
 .primary-button:disabled,.outline-button:disabled { cursor:not-allowed; opacity:.5 }
+.compact-button { font-size:12px; margin-top:14px; padding:10px 13px }
 .studio-success { color:#27815f; font-size:12px; font-weight:700; margin:0 }
 .event-list-heading { margin-top:72px }
 .event-empty { align-items:center; background:#fff; border:1px solid #dce4f5; border-radius:10px; display:flex; gap:16px; padding:21px }
