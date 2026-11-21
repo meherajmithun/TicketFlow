@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import type { CustomerBooking, HeldBooking } from './types.js';
+import { priceSeat } from '../domain/pricing.js';
 
 export class BookingError extends Error {
   constructor(public readonly code: 'EVENT_NOT_FOUND' | 'SEATS_NOT_AVAILABLE' | 'SEAT_NOT_IN_EVENT') {
@@ -30,18 +31,19 @@ export class PgBookingRepository {
       const now = Date.now();
       if (seats.rows.some((seat) => seat.current_booking_id && (seat.hold_expires_at === null || seat.hold_expires_at.getTime() > now))) throw new BookingError('SEATS_NOT_AVAILABLE');
       const expiresAt = new Date(now + 5 * 60 * 1000);
-      const totalCents = seats.rows.reduce((total, seat) => total + seat.base_price_cents, 0);
+      const pricedSeats = seats.rows.map((seat) => ({ ...seat, priceCents: priceSeat(event.rows[0]!.pricing_strategy, { basePriceCents: seat.base_price_cents, eventStartsAt: event.rows[0]!.starts_at, now: new Date(now) }) }));
+      const totalCents = pricedSeats.reduce((total, seat) => total + seat.priceCents, 0);
       const booking = await client.query<{ id: string }>(
         `INSERT INTO bookings (event_id, customer_id, status, total_cents) VALUES ($1, $2, 'held', $3) RETURNING id`, [eventId, customerId, totalCents],
       );
       const bookingId = booking.rows[0]!.id;
-      for (const seat of seats.rows) {
-        await client.query('INSERT INTO booking_seats (booking_id, event_seat_id, price_cents) VALUES ($1, $2, $3)', [bookingId, seat.id, seat.base_price_cents]);
+      for (const seat of pricedSeats) {
+        await client.query('INSERT INTO booking_seats (booking_id, event_seat_id, price_cents) VALUES ($1, $2, $3)', [bookingId, seat.id, seat.priceCents]);
         await client.query(`UPDATE event_seats SET current_booking_id = $1, hold_expires_at = $2, confirmed_at = NULL WHERE id = $3`, [bookingId, expiresAt, seat.id]);
       }
       await client.query(`INSERT INTO booking_status_history (booking_id, from_status, to_status) VALUES ($1, NULL, 'held')`, [bookingId]);
       await client.query('COMMIT');
-      return { id: bookingId, eventId, customerId, status: 'held', totalCents, expiresAt: expiresAt.toISOString(), seats: seats.rows.map((seat) => ({ id: seat.id, rowLabel: seat.row_label, seatNumber: seat.seat_number, priceCents: seat.base_price_cents })) };
+      return { id: bookingId, eventId, customerId, status: 'held', totalCents, expiresAt: expiresAt.toISOString(), seats: pricedSeats.map((seat) => ({ id: seat.id, rowLabel: seat.row_label, seatNumber: seat.seat_number, priceCents: seat.priceCents })) };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;

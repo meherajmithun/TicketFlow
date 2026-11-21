@@ -333,6 +333,8 @@ button {
 .remove-category:not(:disabled):hover { color:#ee785f }
 .event-actions { align-items:center; display:flex; gap:14px; justify-content:flex-end }
 .event-actions select { background:transparent; border:0; color:#64718c; font-size:14px; padding:10px }
+.strategy-select { align-items:center; color:#8290a8; display:flex; font-size:12px; gap:5px }
+.strategy-select select { color:#4163d8; font-weight:700 }
 .primary-button { background:#4163d8; border:0; border-radius:8px; color:#fff; font-size:15px; font-weight:700; padding:15px 22px }
 .primary-button:hover { background:#294abf }
 .primary-button:disabled,.outline-button:disabled { cursor:not-allowed; opacity:.5 }

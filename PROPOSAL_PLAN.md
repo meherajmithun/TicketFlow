@@ -10,7 +10,7 @@ The project PDF requires a live event booking system, not only a UI or schema. I
 | Seat holds and no double booking | Customer seat picker and five-minute transactional holds with PostgreSQL row locks | Add explicit expiry cleanup job and two-user PostgreSQL race test |
 | Booking lifecycle | Pure transition rule and status-history table | Booking service, status history, and ownership checks |
 | Payments | Idempotency constraint in SQL | Two mock providers behind one interface and retry-safe payment attempts |
-| Pricing | Base and early-bird strategies | Apply selected strategy during a hold and persist seat prices |
+| Pricing | Organizer selects base or early-bird per event; selected strategy is applied during a hold and persisted per seat | Add pricing display refinement during checkout |
 | Notifications | SQL table only | In-app notifications and console email adapters |
 | Cancellation and refund | Pure refund rule | Transactional cancellation, claim release, and refund workflow |
 | Delivery | CI exists | Host database, API, and web app; add CD on merge to `main` |

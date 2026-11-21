@@ -14,4 +14,6 @@ Codex added published-event suggestions and public event cards to the customer h
 
 Codex added public event filtering/pagination, customer seat selection, and five-minute holds. The hold transaction sorts requested seat IDs, locks the matching PostgreSQL rows, rejects active claims, writes the booking and seat prices, and commits the claim together. The owner should review the transaction and test the same-seat race against PostgreSQL before submission; the current automated suite does not run a live PostgreSQL integration test.
 
+Codex connected the event-level base/early-bird strategy to hold pricing and exposed the strategy selector in the organizer studio. The selected effective price is calculated when the hold is created and persisted in `booking_seats`.
+
 One setup mistake was found during review: npm workspaces run API commands from `apps/api`, but the first auth implementation used the default dotenv path and therefore missed the repository-root `.env` file. Codex fixed the config to resolve the root file from the module location and verified the API workspace reads it. This is a concrete mistake and correction the owner can discuss in the video walkthrough.
