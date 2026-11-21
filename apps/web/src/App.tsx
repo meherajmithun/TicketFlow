@@ -1,4 +1,21 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+
+type Role = 'organizer' | 'customer';
+type PublicUser = { id: string; email: string; role: Role };
+type Session = { token: string; user: PublicUser };
+
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
+
+async function authRequest(path: string, body: Record<string, string>) {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json() as { user?: PublicUser; token?: string; error?: { message?: string } };
+  if (!response.ok) throw new Error(payload.error?.message ?? 'Something went wrong');
+  return payload as Session;
+}
 
 const seats = Array.from({ length: 48 }, (_, index) => index);
 
@@ -23,6 +40,48 @@ function SeatPreview() {
 export function App() {
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
+  const [session, setSession] = useState<Session | null>(() => {
+    const saved = localStorage.getItem('ticketflow-session');
+    return saved ? JSON.parse(saved) as Session : null;
+  });
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authError, setAuthError] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
+
+  useEffect(() => {
+    if (session) localStorage.setItem('ticketflow-session', JSON.stringify(session));
+    else localStorage.removeItem('ticketflow-session');
+  }, [session]);
+
+  function openAuth(mode: 'login' | 'register') {
+    setAuthMode(mode);
+    setAuthError('');
+    setAuthOpen(true);
+  }
+
+  async function submitAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAuthBusy(true);
+    setAuthError('');
+    const form = new FormData(event.currentTarget);
+    try {
+      const sessionResult = await authRequest(
+        authMode === 'login' ? '/auth/login' : '/auth/register',
+        {
+          email: String(form.get('email') ?? ''),
+          password: String(form.get('password') ?? ''),
+          ...(authMode === 'register' ? { role: String(form.get('role') ?? 'customer') } : {}),
+        },
+      );
+      setSession(sessionResult);
+      setAuthOpen(false);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Unable to continue');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
 
   function searchEvents(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,7 +100,18 @@ export function App() {
           <a href="#events">Events</a>
           <a href="#how-it-works">How it works</a>
         </nav>
-        <a className="header-link" href="#events">Explore events <span aria-hidden="true">↗</span></a>
+        {session ? (
+          <div className="account-menu">
+            <span className="account-greeting">Hi, {session.user.email.split('@')[0]}</span>
+            <span className="role-pill">{session.user.role}</span>
+            <button className="text-button" onClick={() => setSession(null)}>Sign out</button>
+          </div>
+        ) : (
+          <div className="account-actions">
+            <button className="text-button" onClick={() => openAuth('login')}>Sign in</button>
+            <button className="header-link header-button" onClick={() => openAuth('register')}>Join TicketFlow <span aria-hidden="true">↗</span></button>
+          </div>
+        )}
       </header>
 
       <main id="top">
@@ -87,6 +157,35 @@ export function App() {
         </section>
       </main>
       <footer className="site-footer"><span>ticketflow<span className="brand-period">.</span></span><span>Made for the moments that matter.</span></footer>
+      {authOpen && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAuthOpen(false); }}>
+          <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+            <button className="modal-close" aria-label="Close account dialog" onClick={() => setAuthOpen(false)}>×</button>
+            <span className="section-kicker">YOUR TICKETFLOW</span>
+            <h2 id="auth-title">{authMode === 'login' ? 'Welcome back.' : 'Make room for more moments.'}</h2>
+            <p className="auth-intro">{authMode === 'login' ? 'Sign in to keep your tickets and bookings together.' : 'Create an account to discover events or publish your own.'}</p>
+            <div className="auth-tabs" role="tablist" aria-label="Account action">
+              <button className={authMode === 'login' ? 'active' : ''} onClick={() => { setAuthMode('login'); setAuthError(''); }}>Sign in</button>
+              <button className={authMode === 'register' ? 'active' : ''} onClick={() => { setAuthMode('register'); setAuthError(''); }}>Create account</button>
+            </div>
+            <form className="auth-form" onSubmit={submitAuth}>
+              <label htmlFor="auth-email">Email address</label>
+              <input id="auth-email" name="email" type="email" autoComplete="email" required placeholder="you@example.com" />
+              <label htmlFor="auth-password">Password</label>
+              <input id="auth-password" name="password" type="password" autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} minLength={12} required placeholder="At least 12 characters" />
+              {authMode === 'register' && <>
+                <label htmlFor="auth-role">I am joining as</label>
+                <select id="auth-role" name="role" defaultValue="customer">
+                  <option value="customer">Customer — discover and book events</option>
+                  <option value="organizer">Organizer — create and manage events</option>
+                </select>
+              </>}
+              {authError && <p className="auth-error" role="alert">{authError}</p>}
+              <button className="auth-submit" disabled={authBusy}>{authBusy ? 'Please wait…' : authMode === 'login' ? 'Sign in →' : 'Create account →'}</button>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
