@@ -132,6 +132,10 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
       try { response.json({ bookings: await bookings.listCustomerBookings(response.locals.auth.sub) }); }
       catch (error) { next(error); }
     });
+    app.post('/bookings/:bookingId/cancel', customerAuth, async (request, response, next) => {
+      try { response.json({ cancellation: await bookings.cancelBooking(response.locals.auth.sub, request.params.bookingId!) }); }
+      catch (error) { next(error); }
+    });
   }
 
   app.use((_request, response) => {
@@ -153,7 +157,7 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
       return;
     }
     if (error instanceof BookingError) {
-      response.status(error.code === 'SEATS_NOT_AVAILABLE' ? 409 : 404).json({ error: { code: error.code, message: error.message } });
+      response.status(error.code === 'SEATS_NOT_AVAILABLE' || error.code === 'BOOKING_NOT_ACTIVE' ? 409 : 404).json({ error: { code: error.code, message: error.message } });
       return;
     }
     console.error(error);

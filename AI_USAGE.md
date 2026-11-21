@@ -16,4 +16,6 @@ Codex added public event filtering/pagination, customer seat selection, and five
 
 Codex connected the event-level base/early-bird strategy to hold pricing and exposed the strategy selector in the organizer studio. The selected effective price is calculated when the hold is created and persisted in `booking_seats`.
 
+Codex added customer cancellation for held or confirmed bookings. Cancellation locks the booking, releases its seat claims, records the status transition, and applies the existing refund rule to confirmed bookings; held bookings have no paid amount and therefore refund zero. A real payment provider is still required before production refunds are issued.
+
 One setup mistake was found during review: npm workspaces run API commands from `apps/api`, but the first auth implementation used the default dotenv path and therefore missed the repository-root `.env` file. Codex fixed the config to resolve the root file from the module location and verified the API workspace reads it. This is a concrete mistake and correction the owner can discuss in the video walkthrough.

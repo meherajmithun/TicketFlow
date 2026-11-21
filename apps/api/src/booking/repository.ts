@@ -1,10 +1,11 @@
 import type { Pool } from 'pg';
-import type { CustomerBooking, HeldBooking } from './types.js';
+import type { Cancellation, CustomerBooking, HeldBooking } from './types.js';
 import { priceSeat } from '../domain/pricing.js';
+import { refundAmountCents } from '../domain/refund.js';
 
 export class BookingError extends Error {
-  constructor(public readonly code: 'EVENT_NOT_FOUND' | 'SEATS_NOT_AVAILABLE' | 'SEAT_NOT_IN_EVENT') {
-    super(code === 'EVENT_NOT_FOUND' ? 'Published event not found' : code === 'SEAT_NOT_IN_EVENT' ? 'One or more seats do not belong to this event' : 'One or more seats are already held or booked');
+  constructor(public readonly code: 'EVENT_NOT_FOUND' | 'SEATS_NOT_AVAILABLE' | 'SEAT_NOT_IN_EVENT' | 'BOOKING_NOT_FOUND' | 'BOOKING_NOT_ACTIVE') {
+    super(code === 'EVENT_NOT_FOUND' ? 'Published event not found' : code === 'SEAT_NOT_IN_EVENT' ? 'One or more seats do not belong to this event' : code === 'BOOKING_NOT_FOUND' ? 'Booking not found' : code === 'BOOKING_NOT_ACTIVE' ? 'Booking is already cancelled or expired' : 'One or more seats are already held or booked');
   }
 }
 
@@ -59,5 +60,28 @@ export class PgBookingRepository {
        WHERE b.customer_id = $1 GROUP BY b.id, e.name, e.starts_at ORDER BY b.created_at DESC`, [customerId],
     );
     return result.rows.map((booking) => ({ ...booking, startsAt: new Date(booking.startsAt).toISOString(), expiresAt: new Date(booking.expiresAt).toISOString() }));
+  }
+
+  async cancelBooking(customerId: string, bookingId: string): Promise<Cancellation> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query<{ id: string; status: 'held' | 'confirmed' | 'expired' | 'cancelled'; total_cents: number; starts_at: Date }>(
+        `SELECT b.id, b.status, b.total_cents, e.starts_at FROM bookings b JOIN events e ON e.id = b.event_id WHERE b.id = $1 AND b.customer_id = $2 FOR UPDATE`, [bookingId, customerId],
+      );
+      const booking = result.rows[0];
+      if (!booking) throw new BookingError('BOOKING_NOT_FOUND');
+      if (booking.status !== 'held' && booking.status !== 'confirmed') throw new BookingError('BOOKING_NOT_ACTIVE');
+      const cancelledAt = new Date();
+      const refundCents = booking.status === 'confirmed' ? refundAmountCents(booking.total_cents, booking.starts_at, cancelledAt) : 0;
+      await client.query(`UPDATE bookings SET status = 'cancelled', updated_at = now() WHERE id = $1`, [bookingId]);
+      await client.query(`UPDATE event_seats SET current_booking_id = NULL, hold_expires_at = NULL, confirmed_at = NULL WHERE current_booking_id = $1`, [bookingId]);
+      await client.query(`INSERT INTO booking_status_history (booking_id, from_status, to_status) VALUES ($1, $2, 'cancelled')`, [bookingId, booking.status]);
+      await client.query('COMMIT');
+      return { bookingId, status: 'cancelled', refundCents, cancelledAt: cancelledAt.toISOString() };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally { client.release(); }
   }
 }

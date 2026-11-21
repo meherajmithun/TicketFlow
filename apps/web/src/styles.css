@@ -169,6 +169,7 @@ button {
 .hold-icon { align-items:center; background:#27815f; border-radius:50%; color:#fff; display:flex; font-weight:700; height:30px; justify-content:center; width:30px }
 .hold-confirmation strong { color:#172443; font:600 18px 'Space Grotesk',sans-serif }
 .hold-confirmation p { color:#64718c; font-size:13px; margin:5px 0 0 }.hold-confirmation b { color:#27815f }
+.release-button { background:none; border:0; color:#b94c37; font-size:12px; font-weight:700; margin-top:12px; padding:0 }
 
 .modal-close {
   background:none;

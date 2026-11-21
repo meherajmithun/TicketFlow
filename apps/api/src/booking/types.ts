@@ -9,3 +9,4 @@ export type HeldBooking = {
 };
 
 export type CustomerBooking = HeldBooking & { eventName: string; startsAt: string };
+export type Cancellation = { bookingId: string; status: 'cancelled'; refundCents: number; cancelledAt: string };

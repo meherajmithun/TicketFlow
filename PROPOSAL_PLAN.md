@@ -12,7 +12,7 @@ The project PDF requires a live event booking system, not only a UI or schema. I
 | Payments | Idempotency constraint in SQL | Two mock providers behind one interface and retry-safe payment attempts |
 | Pricing | Organizer selects base or early-bird per event; selected strategy is applied during a hold and persisted per seat | Add pricing display refinement during checkout |
 | Notifications | SQL table only | In-app notifications and console email adapters |
-| Cancellation and refund | Pure refund rule | Transactional cancellation, claim release, and refund workflow |
+| Cancellation and refund | Customer cancellation releases claims transactionally and applies the full-refund-more-than-24-hours rule | Connect a real payment/refund provider after payment confirmation |
 | Delivery | CI exists | Host database, API, and web app; add CD on merge to `main` |
 
 Build each row on a focused branch with a pull request. The next feature after this auth foundation should be event management and browsing because seat booking needs published events and generated seats. Then implement transactional holds before payment or UI checkout. Verify the two-user same-seat race against PostgreSQL before submission. Keep bonus features until all mandatory rows are complete.

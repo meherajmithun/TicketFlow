@@ -64,7 +64,7 @@ function SeatPreview() {
 
 function BookingModal({ event, session, onClose, onHeld }: { event: BrowseEvent; session: Session | null; onClose: () => void; onHeld: () => void }) {
   const [selected, setSelected] = useState<string[]>([]);
-  const [hold, setHold] = useState<{ expiresAt: string; totalCents: number } | null>(null);
+  const [hold, setHold] = useState<{ id: string; expiresAt: string; totalCents: number } | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -79,12 +79,19 @@ function BookingModal({ event, session, onClose, onHeld }: { event: BrowseEvent;
     if (!session || !selected.length) return;
     setBusy(true); setError('');
     try {
-      const result = await apiRequest<{ booking: { expiresAt: string; totalCents: number } }>('/bookings/holds', session.token, { method: 'POST', body: JSON.stringify({ eventId: event.id, seatIds: selected }) });
+      const result = await apiRequest<{ booking: { id: string; expiresAt: string; totalCents: number } }>('/bookings/holds', session.token, { method: 'POST', body: JSON.stringify({ eventId: event.id, seatIds: selected }) });
       setHold(result.booking); setSecondsLeft(300); onHeld();
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Those seats are no longer available'); }
     finally { setBusy(false); }
   }
-  return <div className="modal-backdrop" role="presentation" onMouseDown={(mouseEvent) => { if (mouseEvent.target === mouseEvent.currentTarget) onClose(); }}><section className="booking-modal" role="dialog" aria-modal="true" aria-labelledby="booking-title"><button className="modal-close" aria-label="Close seat selection" onClick={onClose}>×</button><span className="section-kicker">CHOOSE YOUR MOMENT</span><h2 id="booking-title">{event.name}</h2><p className="booking-meta">{event.venue.name} · {event.venue.city} · {new Date(event.startsAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>{hold ? <div className="hold-confirmation"><span className="hold-icon">✓</span><div><strong>Your seats are held.</strong><p>Complete payment within <b>{Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}</b>.</p></div></div> : <><div className="booking-stage">THE STAGE</div><div className="seat-picker" aria-label="Seat selection">{Object.entries(seatRows).map(([row, seats]) => <div className="seat-row" key={row}><span>{row}</span><div>{seats.map((seat) => <button type="button" aria-label={`Row ${row} seat ${seat.seatNumber}`} className={`picker-seat ${seat.available ? '' : 'unavailable'} ${selected.includes(seat.id) ? 'chosen' : ''}`} disabled={!seat.available} key={seat.id} onClick={() => setSelected((current) => current.includes(seat.id) ? current.filter((id) => id !== seat.id) : [...current, seat.id])}>{seat.seatNumber}</button>)}</div></div>)}</div><div className="booking-footer"><div><span>{selectedSeats.length} seat{selectedSeats.length === 1 ? '' : 's'} selected</span>{selectedSeats.length > 0 && <strong>{selectedSeats.reduce((total, seat) => total + seat.basePriceCents, 0)} total</strong>}</div><button className="primary-button" disabled={busy || !selected.length} onClick={() => void holdSeats()}>{busy ? 'Holding…' : 'Hold seats →'}</button></div>{error && <p className="auth-error" role="alert">{error}</p>}</>}</section></div>;
+  async function cancelHold() {
+    if (!session || !hold) return;
+    setBusy(true); setError('');
+    try { await apiRequest(`/bookings/${hold.id}/cancel`, session.token, { method: 'POST' }); setHold(null); setSelected([]); onHeld(); }
+    catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Could not release the hold'); }
+    finally { setBusy(false); }
+  }
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(mouseEvent) => { if (mouseEvent.target === mouseEvent.currentTarget) onClose(); }}><section className="booking-modal" role="dialog" aria-modal="true" aria-labelledby="booking-title"><button className="modal-close" aria-label="Close seat selection" onClick={onClose}>×</button><span className="section-kicker">CHOOSE YOUR MOMENT</span><h2 id="booking-title">{event.name}</h2><p className="booking-meta">{event.venue.name} · {event.venue.city} · {new Date(event.startsAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>{hold ? <div className="hold-confirmation"><span className="hold-icon">✓</span><div><strong>Your seats are held.</strong><p>Complete payment within <b>{Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}</b>.</p><button className="release-button" disabled={busy} onClick={() => void cancelHold()}>Release this hold</button></div></div> : <><div className="booking-stage">THE STAGE</div><div className="seat-picker" aria-label="Seat selection">{Object.entries(seatRows).map(([row, seats]) => <div className="seat-row" key={row}><span>{row}</span><div>{seats.map((seat) => <button type="button" aria-label={`Row ${row} seat ${seat.seatNumber}`} className={`picker-seat ${seat.available ? '' : 'unavailable'} ${selected.includes(seat.id) ? 'chosen' : ''}`} disabled={!seat.available} key={seat.id} onClick={() => setSelected((current) => current.includes(seat.id) ? current.filter((id) => id !== seat.id) : [...current, seat.id])}>{seat.seatNumber}</button>)}</div></div>)}</div><div className="booking-footer"><div><span>{selectedSeats.length} seat{selectedSeats.length === 1 ? '' : 's'} selected</span>{selectedSeats.length > 0 && <strong>{selectedSeats.reduce((total, seat) => total + seat.basePriceCents, 0)} total</strong>}</div><button className="primary-button" disabled={busy || !selected.length} onClick={() => void holdSeats()}>{busy ? 'Holding…' : 'Hold seats →'}</button></div>{error && <p className="auth-error" role="alert">{error}</p>}</>}</section></div>;
 }
 
 function OrganizerDashboard({ session }: { session: Session }) {
