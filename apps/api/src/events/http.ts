@@ -31,3 +31,5 @@ export const createEventSchema = z.object({
   const labels = input.seatMap.rows.map((row) => row.label.toLowerCase());
   if (new Set(labels).size !== labels.length) context.addIssue({ code: 'custom', path: ['seatMap', 'rows'], message: 'Row labels must be unique' });
 });
+
+export const eventStatusSchema = z.object({ status: z.enum(['published', 'cancelled']) }).strict();

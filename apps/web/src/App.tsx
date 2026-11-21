@@ -118,6 +118,15 @@ function OrganizerDashboard({ session }: { session: Session }) {
     finally { setBusy(false); }
   }
 
+  async function publishEvent(eventId: string) {
+    setBusy(true); setError(''); setMessage('');
+    try {
+      await apiRequest<{ event: OrganizerEvent }>(`/events/organizer/${eventId}/status`, session.token, { method: 'PATCH', body: JSON.stringify({ status: 'published' }) });
+      setMessage('Event published. Customers can see it now.'); await loadDashboard();
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Could not publish event'); }
+    finally { setBusy(false); }
+  }
+
   return (
     <div className="studio-shell" id="studio">
       <div className="studio-intro">
@@ -149,7 +158,7 @@ function OrganizerDashboard({ session }: { session: Session }) {
             {message && <p className="studio-success" role="status">{message}</p>}{error && <p className="auth-error" role="alert">{error}</p>}
           </form>
           <div className="studio-section-heading event-list-heading"><div><span className="section-kicker">YOUR PROGRAMME</span><h2>Created events</h2></div><span className="studio-rule" /></div>
-          {loading ? <p className="sidebar-empty">Loading your programme…</p> : events.length === 0 ? <div className="event-empty"><span>✳</span><div><strong>Your calendar is open.</strong><p>Build your first event above and it will appear here.</p></div></div> : <div className="event-list">{events.map((event) => <article className="event-card" key={event.id}><div className="event-date"><strong>{new Date(event.startsAt).toLocaleDateString(undefined, { day: '2-digit' })}</strong><span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}</span></div><div className="event-details"><span className={`event-status ${event.status}`}>{event.status}</span><h3>{event.name}</h3><p>{event.venue.name} · {event.venue.city}</p></div><div className="event-count"><strong>{event.seats.length}</strong><span>SEATS</span></div></article>)}</div>}
+          {loading ? <p className="sidebar-empty">Loading your programme…</p> : events.length === 0 ? <div className="event-empty"><span>✳</span><div><strong>Your calendar is open.</strong><p>Build your first event above and it will appear here.</p></div></div> : <div className="event-list">{events.map((event) => <article className="event-card" key={event.id}><div className="event-date"><strong>{new Date(event.startsAt).toLocaleDateString(undefined, { day: '2-digit' })}</strong><span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}</span></div><div className="event-details"><span className={`event-status ${event.status}`}>{event.status}</span><h3>{event.name}</h3><p>{event.venue.name} · {event.venue.city}</p></div><div className="event-count"><strong>{event.seats.length}</strong><span>SEATS</span>{event.status === 'draft' && <button className="publish-button" disabled={busy} onClick={() => void publishEvent(event.id)}>Publish</button>}</div></article>)}</div>}
         </section>
       </div>
     </div>

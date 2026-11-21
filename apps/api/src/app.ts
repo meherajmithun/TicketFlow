@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { AppConfig } from './config.js';
 import { AuthError, type AuthService } from './auth/service.js';
 import { loginSchema, registerSchema, requireAuth } from './auth/http.js';
-import { createEventSchema, venueSchema } from './events/http.js';
+import { createEventSchema, eventStatusSchema, venueSchema } from './events/http.js';
 import { EventError, EventService } from './events/service.js';
 
 export function createApp(config: AppConfig, auth: AuthService, events?: EventService) {
@@ -95,6 +95,13 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     app.get('/events/organizer/:eventId', organizerAuth, async (request, response, next) => {
       try { response.json({ event: await events.getOrganizerEvent(response.locals.auth.sub, request.params.eventId!) }); }
       catch (error) { next(error); }
+    });
+
+    app.patch('/events/organizer/:eventId/status', organizerAuth, async (request, response, next) => {
+      try {
+        const input = eventStatusSchema.parse(request.body);
+        response.json({ event: await events.updateEventStatus(response.locals.auth.sub, request.params.eventId!, input.status) });
+      } catch (error) { next(error); }
     });
 
     app.get('/events', async (_request, response, next) => {

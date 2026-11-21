@@ -8,6 +8,7 @@ export interface EventRepository {
   createEvent(input: CreateEventInput): Promise<Event>;
   listOrganizerEvents(organizerId: string): Promise<Event[]>;
   findOrganizerEvent(organizerId: string, eventId: string): Promise<Event | null>;
+  updateEventStatus(organizerId: string, eventId: string, status: 'published' | 'cancelled'): Promise<Event | null>;
   listPublishedEvents(): Promise<Event[]>;
   findPublishedEvent(eventId: string): Promise<Event | null>;
 }
@@ -113,6 +114,12 @@ export class PgEventRepository implements EventRepository {
   async findOrganizerEvent(organizerId: string, eventId: string): Promise<Event | null> {
     const events = await this.findMany('e.organizer_id = $1 AND e.id = $2', [organizerId, eventId]);
     return events[0] ?? null;
+  }
+
+  async updateEventStatus(organizerId: string, eventId: string, status: 'published' | 'cancelled'): Promise<Event | null> {
+    const result = await this.pool.query('UPDATE events SET status = $3 WHERE organizer_id = $1 AND id = $2', [organizerId, eventId, status]);
+    if (!result.rowCount) return null;
+    return this.findOrganizerEvent(organizerId, eventId);
   }
 
   async listPublishedEvents(): Promise<Event[]> {

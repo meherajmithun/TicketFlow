@@ -36,6 +36,12 @@ export class EventService {
     return event;
   }
 
+  async updateEventStatus(organizerId: string, eventId: string, status: 'published' | 'cancelled') {
+    const event = await this.events.updateEventStatus(organizerId, eventId, status);
+    if (!event) throw new EventError('EVENT_NOT_FOUND');
+    return event;
+  }
+
   listPublishedEvents() {
     return this.events.listPublishedEvents();
   }

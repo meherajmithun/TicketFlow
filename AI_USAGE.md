@@ -10,4 +10,6 @@ For event management, Codex added organizer-protected venue and event routes, Zo
 
 Codex then added the organizer studio to the web app. It loads the organizer's own venues and events, creates venues, creates draft or published events, builds row-by-seat maps with category prices, and keeps organizer API authorization in place. The owner should review the browser-to-API request payloads before submission.
 
+Codex added published-event suggestions and public event cards to the customer homepage, plus an organizer publish action for existing drafts. The owner should verify that only future published events appear to customers.
+
 One setup mistake was found during review: npm workspaces run API commands from `apps/api`, but the first auth implementation used the default dotenv path and therefore missed the repository-root `.env` file. Codex fixed the config to resolve the root file from the module location and verified the API workspace reads it. This is a concrete mistake and correction the owner can discuss in the video walkthrough.

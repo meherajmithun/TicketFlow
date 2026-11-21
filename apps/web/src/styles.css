@@ -329,6 +329,9 @@ button {
 .event-status.published { color:#27815f }.event-status.draft { color:#b47b2c }.event-status.cancelled { color:#b94c37 }
 .event-count { align-items:flex-end; display:flex; flex-direction:column }
 .event-count strong { font:700 21px 'Space Grotesk',sans-serif }.event-count span { color:#a2acc0; font-size:9px; font-weight:700; letter-spacing:1px }
+.publish-button { background:#e8eeff; border:0; border-radius:5px; color:#4163d8; font-size:11px; font-weight:700; margin-top:9px; padding:7px 10px }
+.publish-button:hover { background:#4163d8; color:#fff }
+.publish-button:disabled { cursor:wait; opacity:.5 }
 
 .hero {
   display:grid;

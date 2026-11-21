@@ -60,6 +60,13 @@ class MemoryEvents implements EventRepository {
   }
   async listOrganizerEvents(owner: string) { return [...this.events.values()].filter((event) => event.organizerId === owner); }
   async findOrganizerEvent(owner: string, id: string) { return this.events.get(id)?.organizerId === owner ? this.events.get(id)! : null; }
+  async updateEventStatus(owner: string, id: string, status: 'published' | 'cancelled') {
+    const event = await this.findOrganizerEvent(owner, id);
+    if (!event) return null;
+    const updated = { ...event, status };
+    this.events.set(id, updated);
+    return updated;
+  }
   async listPublishedEvents() { return [...this.events.values()].filter((event) => event.status === 'published'); }
   async findPublishedEvent(id: string) { const event = this.events.get(id); return event?.status === 'published' ? event : null; }
 }
@@ -92,6 +99,8 @@ test('organizers create venues and events, while customers cannot manage them', 
     assert.equal(eventPayload.event.seats.length, 8);
     assert.equal((await fetch(`${base}/events/organizer`, { headers: customerHeaders })).status, 403);
     assert.equal((await fetch(`${base}/events/organizer/${eventId}`, { headers: { authorization: organizerHeaders.authorization } })).status, 200);
+    const publishResponse = await fetch(`${base}/events/organizer/${eventId}/status`, { method: 'PATCH', headers: organizerHeaders, body: JSON.stringify({ status: 'published' }) });
+    assert.equal(publishResponse.status, 200);
     assert.equal((await fetch(`${base}/events`)).status, 200);
   } finally {
     server.closeAllConnections();
