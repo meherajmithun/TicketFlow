@@ -125,6 +125,16 @@ button {
   padding:6px 9px;
   text-transform:uppercase}
 
+.notification-wrap { position:relative }
+.notification-button { background:none; border:0; color:#4163d8; font-size:23px; line-height:1; padding:4px; position:relative }
+.notification-button i { background:#ee785f; border:2px solid #f7f9ff; border-radius:50%; height:8px; position:absolute; right:2px; top:2px; width:8px }
+.notification-panel { background:#fff; border:1px solid #dce4f5; border-radius:10px; box-shadow:0 16px 35px #263c8020; min-width:260px; padding:15px; position:absolute; right:0; top:38px; z-index:6 }
+.notification-panel>strong { display:block; font:600 15px 'Space Grotesk',sans-serif; margin-bottom:10px }
+.notification-panel>p { color:#8290a8; font-size:12px; margin:0 }
+.notification-panel button { align-items:flex-start; background:none; border:0; border-top:1px solid #eef1f8; color:#64718c; display:flex; font-size:12px; gap:8px; line-height:1.4; padding:10px 0; text-align:left; width:100% }
+.notification-panel button.unread { color:#172443; font-weight:700 }
+.notification-panel button span { color:#ee785f; font-weight:700 }
+
 .modal-backdrop {
   align-items:center;
   background:#17244399;

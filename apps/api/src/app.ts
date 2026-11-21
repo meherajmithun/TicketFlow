@@ -10,8 +10,9 @@ import { holdSeatsSchema } from './booking/http.js';
 import { BookingError, BookingService } from './booking/service.js';
 import { paySchema } from './payment/http.js';
 import { PaymentError, PaymentService } from './payment/service.js';
+import { NotificationService } from './notification/service.js';
 
-export function createApp(config: AppConfig, auth: AuthService, events?: EventService, bookings?: BookingService, payments?: PaymentService) {
+export function createApp(config: AppConfig, auth: AuthService, events?: EventService, bookings?: BookingService, payments?: PaymentService, notifications?: NotificationService) {
   const app = express();
   app.disable('x-powered-by');
   app.use(cors({ origin: config.clientOrigin }));
@@ -135,7 +136,11 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
       catch (error) { next(error); }
     });
     app.post('/bookings/:bookingId/cancel', customerAuth, async (request, response, next) => {
-      try { response.json({ cancellation: await bookings.cancelBooking(response.locals.auth.sub, request.params.bookingId!) }); }
+      try {
+        const cancellation = await bookings.cancelBooking(response.locals.auth.sub, request.params.bookingId!);
+        if (notifications) await notifications.publish({ userId: response.locals.auth.sub, bookingId: cancellation.bookingId, type: 'booking_cancelled', message: 'Your booking has been cancelled.' });
+        response.json({ cancellation });
+      }
       catch (error) { next(error); }
     });
     app.post('/bookings/:bookingId/payment', customerAuth, async (request, response, next) => {
@@ -143,7 +148,11 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
       catch (error) { next(error); }
     });
     app.post('/bookings/:bookingId/confirm', customerAuth, async (request, response, next) => {
-      try { response.json({ booking: await bookings.transitionBooking(response.locals.auth.sub, request.params.bookingId!, 'confirmed') }); }
+      try {
+        const booking = await bookings.transitionBooking(response.locals.auth.sub, request.params.bookingId!, 'confirmed');
+        if (notifications) await notifications.publish({ userId: response.locals.auth.sub, bookingId: booking.bookingId, type: 'booking_confirmed', message: 'Your booking has been confirmed.' });
+        response.json({ booking });
+      }
       catch (error) { next(error); }
     });
     app.get('/bookings/:bookingId/history', customerAuth, async (request, response, next) => {
@@ -157,8 +166,22 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     app.post('/bookings/:bookingId/pay', customerAuth, async (request, response, next) => {
       try {
         const input = paySchema.parse(request.body);
-        response.json({ payment: await payments.pay(response.locals.auth.sub, request.params.bookingId!, input.provider, input.idempotencyKey) });
+        const payment = await payments.pay(response.locals.auth.sub, request.params.bookingId!, input.provider, input.idempotencyKey);
+        if (payment.status === 'succeeded' && notifications) await notifications.publish({ userId: response.locals.auth.sub, bookingId: payment.bookingId, type: 'booking_confirmed', message: 'Your payment was successful and your booking is confirmed.' });
+        response.json({ payment });
       } catch (error) { next(error); }
+    });
+  }
+
+  if (notifications) {
+    const customerAuth = requireAuth(config.authTokenSecret, 'customer');
+    app.get('/notifications', customerAuth, async (request, response, next) => {
+      try { response.json({ notifications: await notifications.listForUser(response.locals.auth.sub) }); }
+      catch (error) { next(error); }
+    });
+    app.post('/notifications/:notificationId/read', customerAuth, async (request, response, next) => {
+      try { response.json({ read: await notifications.markRead(response.locals.auth.sub, request.params.notificationId!) }); }
+      catch (error) { next(error); }
     });
   }
 

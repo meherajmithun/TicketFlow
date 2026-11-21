@@ -58,6 +58,8 @@ Organizer routes require an organizer bearer token. An organizer can only list a
 | `POST /bookings/:bookingId/confirm` | Confirm an owned pending-payment booking through the mock payment step |
 | `GET /bookings/:bookingId/history` | Read the owned booking's status history |
 | `POST /bookings/:bookingId/pay` | Charge a pending booking through `stripe` or `paypal` using an idempotency key |
+| `GET /notifications` | List the authenticated customer's in-app notifications |
+| `POST /notifications/:notificationId/read` | Mark an in-app notification as read |
 
 Tokens expire after 12 hours. Passwords are stored as salted scrypt hashes. The role guard is ready for organizer and customer routes, but no event or booking routes exist yet.
 

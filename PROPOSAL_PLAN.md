@@ -11,7 +11,7 @@ The project PDF requires a live event booking system, not only a UI or schema. I
 | Booking lifecycle | Held → pending payment → confirmed/expired/cancelled transitions, history, expiry cleanup, and customer controls | Connect real payment attempts and notifications |
 | Payments | Mock Stripe and PayPal providers share one interface; payment attempts are idempotent and successful payment confirms the booking | Add provider failure simulations and production adapter |
 | Pricing | Organizer selects base or early-bird per event; selected strategy is applied during a hold and persisted per seat | Add pricing display refinement during checkout |
-| Notifications | SQL table only | In-app notifications and console email adapters |
+| Notifications | Confirmation/cancellation fan-out to in-app storage and console email adapters behind a channel interface | Add richer email templates and additional channels |
 | Cancellation and refund | Customer cancellation releases claims transactionally and applies the full-refund-more-than-24-hours rule | Connect a real payment/refund provider after payment confirmation |
 | Delivery | CI exists | Host database, API, and web app; add CD on merge to `main` |
 

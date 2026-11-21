@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 type Role = 'organizer' | 'customer';
 type PublicUser = { id: string; email: string; role: Role };
 type Session = { token: string; user: PublicUser };
+type AppNotification = { id: string; type: 'booking_confirmed' | 'booking_cancelled'; message: string; readAt: string | null; createdAt: string };
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
@@ -236,11 +237,24 @@ export function App() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authError, setAuthError] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
     if (session) localStorage.setItem('ticketflow-session', JSON.stringify(session));
     else localStorage.removeItem('ticketflow-session');
   }, [session]);
+
+  useEffect(() => {
+    if (session?.user.role !== 'customer') { setNotifications([]); return; }
+    void apiRequest<{ notifications: AppNotification[] }>('/notifications', session.token).then((payload) => setNotifications(payload.notifications)).catch(() => setNotifications([]));
+  }, [session]);
+
+  async function readNotification(notificationId: string) {
+    if (!session) return;
+    await apiRequest(`/notifications/${notificationId}/read`, session.token, { method: 'POST' });
+    setNotifications((items) => items.map((item) => item.id === notificationId ? { ...item, readAt: new Date().toISOString() } : item));
+  }
 
   async function loadPublicEvents(filters: { q?: string; city?: string; date?: string; page?: number } = {}) {
     setEventsLoading(true);
@@ -314,6 +328,7 @@ export function App() {
           <div className="account-menu">
             <span className="account-greeting">Hi, {session.user.email.split('@')[0]}</span>
             <span className="role-pill">{session.user.role}</span>
+            {session.user.role === 'customer' && <div className="notification-wrap"><button className="notification-button" aria-label="Notifications" onClick={() => setNotificationsOpen((open) => !open)}>♢{notifications.some((notification) => !notification.readAt) && <i />}</button>{notificationsOpen && <div className="notification-panel"><strong>Notifications</strong>{notifications.length ? notifications.slice(0, 5).map((notification) => <button className={notification.readAt ? '' : 'unread'} key={notification.id} onClick={() => void readNotification(notification.id)}><span>{notification.type === 'booking_confirmed' ? '✓' : '×'}</span>{notification.message}</button>) : <p>No notifications yet.</p>}</div>}</div>}
             <button className="text-button" onClick={() => setSession(null)}>Sign out</button>
           </div>
         ) : (

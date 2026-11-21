@@ -22,4 +22,6 @@ Codex completed the booking lifecycle endpoints and mock customer controls for p
 
 Codex added mock Stripe and PayPal providers behind the `PaymentProvider` interface. Payment attempts use the database's unique booking/idempotency-key constraint, and retries return the existing attempt without charging again; a successful attempt transitions the booking to confirmed.
 
+Codex added confirmation and cancellation notifications through a `NotificationChannel` interface, with an in-app PostgreSQL channel and console email adapter. Notification creation is deduplicated by user, booking, and type so payment retries do not send duplicate confirmations. The owner should review the channel registration and notification read flow.
+
 One setup mistake was found during review: npm workspaces run API commands from `apps/api`, but the first auth implementation used the default dotenv path and therefore missed the repository-root `.env` file. Codex fixed the config to resolve the root file from the module location and verified the API workspace reads it. This is a concrete mistake and correction the owner can discuss in the video walkthrough.
