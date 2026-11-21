@@ -24,7 +24,7 @@ const notifications = new NotificationService(new PgNotificationRepository(pool)
 const server = createApp(config, auth, events, bookings, payments, notifications).listen(config.port, () => {
   console.info(`TicketFlow API listening on port ${config.port}`);
 });
-const expiryTimer = setInterval(() => { void bookings.expireHolds(); }, 30_000);
+const expiryTimer = setInterval(() => { void bookings.expireHolds().catch((error: unknown) => console.error('Hold expiry cleanup failed', error)); }, 30_000);
 
 async function shutdown() {
   clearInterval(expiryTimer);

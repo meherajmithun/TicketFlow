@@ -90,12 +90,13 @@ export class PgBookingRepository {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const result = await client.query<{ status: 'held' | 'pending_payment' | 'confirmed' | 'expired' | 'cancelled'; hold_expires_at: Date | null }>(
-        'SELECT status, hold_expires_at FROM bookings WHERE id = $1 AND customer_id = $2 FOR UPDATE', [bookingId, customerId],
+      const result = await client.query<{ status: 'held' | 'pending_payment' | 'confirmed' | 'expired' | 'cancelled' }>(
+        'SELECT status FROM bookings WHERE id = $1 AND customer_id = $2 FOR UPDATE', [bookingId, customerId],
       );
       const booking = result.rows[0];
       if (!booking) throw new BookingError('BOOKING_NOT_FOUND');
-      if (booking.hold_expires_at && booking.hold_expires_at.getTime() <= Date.now()) throw new BookingError('BOOKING_NOT_ACTIVE');
+      const expiry = await client.query<{ hold_expires_at: Date | null }>('SELECT MIN(hold_expires_at) AS hold_expires_at FROM event_seats WHERE current_booking_id = $1', [bookingId]);
+      if (expiry.rows[0]?.hold_expires_at && expiry.rows[0].hold_expires_at.getTime() <= Date.now()) throw new BookingError('BOOKING_NOT_ACTIVE');
       try { transitionBooking(booking.status, toStatus); } catch { throw new BookingError('INVALID_TRANSITION'); }
       await client.query(`UPDATE bookings SET status = $2, updated_at = now() WHERE id = $1`, [bookingId, toStatus]);
       if (toStatus === 'confirmed') await client.query(`UPDATE event_seats SET hold_expires_at = NULL, confirmed_at = now() WHERE current_booking_id = $1`, [bookingId]);
@@ -110,7 +111,7 @@ export class PgBookingRepository {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const expired = await client.query<{ id: string; status: 'held' | 'pending_payment' }>(`SELECT id, status FROM bookings WHERE status IN ('held', 'pending_payment') AND hold_expires_at <= now() FOR UPDATE SKIP LOCKED`);
+      const expired = await client.query<{ id: string; status: 'held' | 'pending_payment' }>(`SELECT b.id, b.status FROM bookings b WHERE b.status IN ('held', 'pending_payment') AND EXISTS (SELECT 1 FROM event_seats s WHERE s.current_booking_id = b.id AND s.hold_expires_at <= now()) FOR UPDATE OF b SKIP LOCKED`);
       for (const booking of expired.rows) {
         await client.query(`UPDATE bookings SET status = 'expired', updated_at = now() WHERE id = $1`, [booking.id]);
         await client.query(`UPDATE event_seats SET current_booking_id = NULL, hold_expires_at = NULL, confirmed_at = NULL WHERE current_booking_id = $1`, [booking.id]);
