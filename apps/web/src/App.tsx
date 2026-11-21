@@ -198,6 +198,10 @@ export function App() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [searchFocused, setSearchFocused] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<BrowseEvent | null>(null);
+  const [cityFilter, setCityFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [session, setSession] = useState<Session | null>(() => {
     const saved = localStorage.getItem('ticketflow-session');
     return saved ? JSON.parse(saved) as Session : null;
@@ -212,10 +216,14 @@ export function App() {
     else localStorage.removeItem('ticketflow-session');
   }, [session]);
 
-  async function loadPublicEvents() {
+  async function loadPublicEvents(filters: { q?: string; city?: string; date?: string; page?: number } = {}) {
     setEventsLoading(true);
-    await publicRequest<{ events: BrowseEvent[] }>('/events')
-      .then((payload) => setPublicEvents(payload.events))
+    const params = new URLSearchParams({ page: String(filters.page ?? 1), pageSize: '6' });
+    if (filters.q) params.set('q', filters.q);
+    if (filters.city) params.set('city', filters.city);
+    if (filters.date) params.set('date', filters.date);
+    await publicRequest<{ events: BrowseEvent[]; totalPages: number; page: number }>(`/events?${params.toString()}`)
+      .then((payload) => { setPublicEvents(payload.events); setTotalPages(payload.totalPages); setPage(payload.page); })
       .catch(() => setPublicEvents([]))
       .finally(() => setEventsLoading(false));
   }
@@ -257,6 +265,7 @@ export function App() {
     event.preventDefault();
     setSubmittedQuery(query.trim());
     setSearchFocused(false);
+    void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: 1 });
     document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -303,6 +312,7 @@ export function App() {
                 <input id="event-search" value={query} onFocus={() => setSearchFocused(true)} onChange={(event) => { setQuery(event.target.value); setSearchFocused(true); }} placeholder="Search events or cities" />
                 <button type="submit">Search <span aria-hidden="true">→</span></button>
               </div>
+              <div className="search-filters"><label>City <input value={cityFilter} onChange={(event) => setCityFilter(event.target.value)} placeholder="Any city" /></label><label>Date <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} /></label><button type="button" onClick={() => { setQuery(''); setCityFilter(''); setDateFilter(''); setSubmittedQuery(''); void loadPublicEvents({ page: 1 }); }}>Clear filters</button></div>
               {searchFocused && <div className="search-suggestions" role="listbox" aria-label="Available events">{suggestedEvents.length ? suggestedEvents.slice(0, 5).map((event) => <button type="button" role="option" key={event.id} onMouseDown={(clickEvent) => clickEvent.preventDefault()} onClick={() => { setQuery(event.name); setSubmittedQuery(event.name); setSearchFocused(false); document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' }); }}><span className="suggestion-icon">↗</span><span><strong>{event.name}</strong><small>{event.venue.city} · {new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></span></button>) : <p className="no-suggestions">No published events match yet.</p>}</div>}
             </form>
           </div>
@@ -315,7 +325,7 @@ export function App() {
 
         <section className="events-section" id="events" aria-labelledby="events-title">
           <div className="section-heading"><div><span className="section-kicker">DISCOVER</span><h2 id="events-title">Upcoming events</h2></div><span className="section-line" /></div>
-          {eventsLoading ? <div className="empty-events"><div className="empty-symbol" aria-hidden="true">↗</div><div><h3>Finding the next good night.</h3><p>Loading published events.</p></div></div> : visibleEvents.length ? <div className="public-event-grid">{visibleEvents.map((event) => <article className="public-event-card" key={event.id} role="button" tabIndex={0} onClick={() => { if (session?.user.role === 'customer') setSelectedEvent(event); else openAuth('login'); }} onKeyDown={(keyboardEvent) => { if (keyboardEvent.key === 'Enter') { if (session?.user.role === 'customer') setSelectedEvent(event); else openAuth('login'); } }}><div className="public-event-top"><span className="event-status published">UPCOMING</span><span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}</span></div><h3>{event.name}</h3><p>{event.venue.name} · {event.venue.city}</p><div className="public-event-meta"><span>{event.seats.filter((seat) => seat.available).length} seats available</span><span>From {Math.min(...event.categories.map((category) => category.basePriceCents))}</span></div></article>)}</div> : <div className="empty-events"><div className="empty-symbol" aria-hidden="true">✳</div><div><h3>{submittedQuery ? `No events found for “${submittedQuery}”` : 'The calendar is getting ready.'}</h3><p>{submittedQuery ? 'Try another event name or city when events are available.' : 'Published events will appear here as soon as organizers add them.'}</p></div></div>}
+          {eventsLoading ? <div className="empty-events"><div className="empty-symbol" aria-hidden="true">↗</div><div><h3>Finding the next good night.</h3><p>Loading published events.</p></div></div> : visibleEvents.length ? <><div className="public-event-grid">{visibleEvents.map((event) => <article className="public-event-card" key={event.id} role="button" tabIndex={0} onClick={() => { if (session?.user.role === 'customer') setSelectedEvent(event); else openAuth('login'); }} onKeyDown={(keyboardEvent) => { if (keyboardEvent.key === 'Enter') { if (session?.user.role === 'customer') setSelectedEvent(event); else openAuth('login'); } }}><div className="public-event-top"><span className="event-status published">UPCOMING</span><span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}</span></div><h3>{event.name}</h3><p>{event.venue.name} · {event.venue.city}</p><div className="public-event-meta"><span>{event.seats.filter((seat) => seat.available).length} seats available</span><span>From {Math.min(...event.categories.map((category) => category.basePriceCents))}</span></div></article>)}</div>{totalPages > 1 && <div className="pagination"><button disabled={page === 1} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page - 1 })}>← Previous</button><span>Page {page} of {totalPages}</span><button disabled={page === totalPages} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page + 1 })}>Next →</button></div>}</> : <div className="empty-events"><div className="empty-symbol" aria-hidden="true">✳</div><div><h3>{submittedQuery ? `No events found for “${submittedQuery}”` : 'The calendar is getting ready.'}</h3><p>{submittedQuery ? 'Try another event name or city when events are available.' : 'Published events will appear here as soon as organizers add them.'}</p></div></div>}
         </section>
 
         <section className="how-section" id="how-it-works" aria-labelledby="how-title">

@@ -130,8 +130,10 @@ export class PgEventRepository implements EventRepository {
     if (search.date) { params.push(search.date); filters.push(`e.starts_at::date = $${params.length}::date`); }
     const count = await this.pool.query<{ count: string }>(`SELECT count(*) FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${filters.join(' AND ')}`, params);
     const total = Number(count.rows[0]?.count ?? 0);
+    const limitPlaceholder = params.length + 1;
+    const offsetPlaceholder = params.length + 2;
     params.push(search.pageSize, (search.page - 1) * search.pageSize);
-    const events = await this.findMany(`${filters.join(' AND ')} LIMIT $${params.length - 1} OFFSET $${params.length}`, params);
+    const events = await this.findMany(filters.join(' AND '), params, `LIMIT $${limitPlaceholder} OFFSET $${offsetPlaceholder}`);
     return { events, total, page: search.page, pageSize: search.pageSize, totalPages: Math.ceil(total / search.pageSize) };
   }
 
@@ -145,11 +147,11 @@ export class PgEventRepository implements EventRepository {
     return events[0] ?? null;
   }
 
-  private async findMany(where: string, params: unknown[]): Promise<Event[]> {
+  private async findMany(where: string, params: unknown[], pagination = ''): Promise<Event[]> {
     const result = await this.pool.query<EventRow>(
       `SELECT e.id, e.organizer_id, e.venue_id, v.name AS venue_name, v.city, v.address,
               e.name, e.description, e.starts_at, e.pricing_strategy, e.status
-       FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${where} ORDER BY e.starts_at ASC`, params,
+       FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${where} ORDER BY e.starts_at ASC ${pagination}`, params,
     );
     const events: Event[] = [];
     for (const row of result.rows) {

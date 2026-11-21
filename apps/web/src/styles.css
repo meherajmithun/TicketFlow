@@ -458,6 +458,11 @@ button {
 .search button span {
   margin-left:9px}
 
+.search-filters { align-items:center; border-top:1px solid #eef1f8; display:flex; gap:14px; margin-top:13px; padding-top:12px }
+.search-filters label { align-items:center; color:#8290a8; display:flex; font-size:11px; font-weight:700; gap:7px; margin:0 }
+.search-filters input { background:#f7f9ff; border:1px solid #dce4f5; border-radius:5px; color:#172443; font-size:11px; max-width:120px; padding:7px 8px }
+.search-filters button { background:none; border:0; color:#4163d8; font-size:11px; font-weight:700; margin-left:auto; padding:5px 0 }
+
 .search-suggestions {
   background:#fff;
   border:1px solid #dce4f5;
@@ -721,6 +726,10 @@ button {
 .public-event-card h3 { font:600 22px 'Space Grotesk',sans-serif; letter-spacing:-.7px; margin:25px 0 7px }
 .public-event-card p { color:#64718c; font-size:13px; margin:0 }
 .public-event-meta { border-top:1px solid #eef1f8; color:#8290a8; display:flex; font-size:11px; justify-content:space-between; margin-top:22px; padding-top:14px }
+.pagination { align-items:center; display:flex; gap:20px; justify-content:center; margin-top:28px }
+.pagination button { background:#fff; border:1px solid #dce4f5; border-radius:6px; color:#4163d8; font-size:12px; font-weight:700; padding:9px 13px }
+.pagination button:hover:not(:disabled) { border-color:#4163d8 }.pagination button:disabled { color:#a2acc0; cursor:not-allowed }
+.pagination span { color:#8290a8; font-size:12px }
 
 @media (max-width:720px) {
   .site-header { height:auto; padding:22px 20px; flex-wrap:wrap }
