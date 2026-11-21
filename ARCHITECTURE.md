@@ -15,7 +15,7 @@ flowchart LR
   BookingService -. future .-> Domain[Booking, hold, pricing, refund rules]
 ```
 
-The API exposes `/health`, account registration/login/profile routes, organizer venue/event routes, and public published-event browsing. `server.ts` wires the PostgreSQL pool, user repository, event repository, and services. `db:migrate` applies SQL files once and records them in `schema_migrations`. The browser includes the account experience and discovery shell; organizer event-management screens remain. The booking domain rules remain pure functions awaiting application services.
+The API exposes `/health`, account registration/login/profile routes, organizer venue/event routes, and public published-event browsing. `server.ts` wires the PostgreSQL pool, user repository, event repository, and services. `db:migrate` applies SQL files once and records them in `schema_migrations`. The browser includes the account experience, discovery shell, and organizer studio. The booking domain rules remain pure functions awaiting application services.
 
 ## Layers to complete
 

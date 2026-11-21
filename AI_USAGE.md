@@ -8,4 +8,6 @@ For the authentication foundation, Codex drafted the PostgreSQL user repository,
 
 For event management, Codex added organizer-protected venue and event routes, Zod validation for future event date-times and row/category seat maps, a PostgreSQL event repository with transactional event/category/seat creation, public published-event browsing, ownership filtering, and in-memory API tests. The owner should review the transaction and ownership checks before submission. PostgreSQL integration tests still need to be run against the local database.
 
+Codex then added the organizer studio to the web app. It loads the organizer's own venues and events, creates venues, creates draft or published events, builds row-by-seat maps with category prices, and keeps organizer API authorization in place. The owner should review the browser-to-API request payloads before submission.
+
 One setup mistake was found during review: npm workspaces run API commands from `apps/api`, but the first auth implementation used the default dotenv path and therefore missed the repository-root `.env` file. Codex fixed the config to resolve the root file from the module location and verified the API workspace reads it. This is a concrete mistake and correction the owner can discuss in the video walkthrough.

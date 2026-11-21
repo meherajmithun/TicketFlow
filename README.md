@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/meherajmithun/TicketFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/meherajmithun/TicketFlow/actions/workflows/ci.yml)
 
-TicketFlow is an event ticket booking project for CPS Academy InterviewQuest-3. The API has PostgreSQL-backed account registration and login, signed bearer tokens, reusable role checks, and organizer-owned venue/event management. The web app includes the account experience and discovery shell; organizer event-management screens, seat reservation, payments, notifications, and deployment remain to be built.
+TicketFlow is an event ticket booking project for CPS Academy InterviewQuest-3. The API has PostgreSQL-backed account registration and login, signed bearer tokens, reusable role checks, and organizer-owned venue/event management. The web app includes the account experience, discovery shell, and organizer studio; seat reservation, payments, notifications, and deployment remain to be built.
 
 ## Requirements
 
