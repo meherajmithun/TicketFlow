@@ -8,8 +8,10 @@ import { createEventSchema, eventSearchSchema, eventStatusSchema, venueSchema } 
 import { EventError, EventService } from './events/service.js';
 import { holdSeatsSchema } from './booking/http.js';
 import { BookingError, BookingService } from './booking/service.js';
+import { paySchema } from './payment/http.js';
+import { PaymentError, PaymentService } from './payment/service.js';
 
-export function createApp(config: AppConfig, auth: AuthService, events?: EventService, bookings?: BookingService) {
+export function createApp(config: AppConfig, auth: AuthService, events?: EventService, bookings?: BookingService, payments?: PaymentService) {
   const app = express();
   app.disable('x-powered-by');
   app.use(cors({ origin: config.clientOrigin }));
@@ -150,6 +152,16 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     });
   }
 
+  if (payments) {
+    const customerAuth = requireAuth(config.authTokenSecret, 'customer');
+    app.post('/bookings/:bookingId/pay', customerAuth, async (request, response, next) => {
+      try {
+        const input = paySchema.parse(request.body);
+        response.json({ payment: await payments.pay(response.locals.auth.sub, request.params.bookingId!, input.provider, input.idempotencyKey) });
+      } catch (error) { next(error); }
+    });
+  }
+
   app.use((_request, response) => {
     response.status(404).json({ error: { code: 'NOT_FOUND', message: 'Route not found' } });
   });
@@ -170,6 +182,10 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     }
     if (error instanceof BookingError) {
       response.status(error.code === 'SEATS_NOT_AVAILABLE' || error.code === 'BOOKING_NOT_ACTIVE' || error.code === 'INVALID_TRANSITION' ? 409 : 404).json({ error: { code: error.code, message: error.message } });
+      return;
+    }
+    if (error instanceof PaymentError) {
+      response.status(error.code === 'BOOKING_NOT_PAYABLE' ? 409 : 404).json({ error: { code: error.code, message: error.message } });
       return;
     }
     console.error(error);

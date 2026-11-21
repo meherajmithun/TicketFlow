@@ -20,4 +20,6 @@ Codex added customer cancellation for held or confirmed bookings. Cancellation l
 
 Codex completed the booking lifecycle endpoints and mock customer controls for payment handoff, confirmation, cancellation, and expiry cleanup. Every transition is checked against the domain state-machine table and appended to `booking_status_history`.
 
+Codex added mock Stripe and PayPal providers behind the `PaymentProvider` interface. Payment attempts use the database's unique booking/idempotency-key constraint, and retries return the existing attempt without charging again; a successful attempt transitions the booking to confirmed.
+
 One setup mistake was found during review: npm workspaces run API commands from `apps/api`, but the first auth implementation used the default dotenv path and therefore missed the repository-root `.env` file. Codex fixed the config to resolve the root file from the module location and verified the API workspace reads it. This is a concrete mistake and correction the owner can discuss in the video walkthrough.

@@ -9,7 +9,7 @@ The project PDF requires a live event booking system, not only a UI or schema. I
 | Browse and search | Database-backed public event cards, suggestions, and name/city/date filters with pagination | Add richer filter controls and event detail navigation |
 | Seat holds and no double booking | Customer seat picker and five-minute transactional holds with PostgreSQL row locks | Add explicit expiry cleanup job and two-user PostgreSQL race test |
 | Booking lifecycle | Held → pending payment → confirmed/expired/cancelled transitions, history, expiry cleanup, and customer controls | Connect real payment attempts and notifications |
-| Payments | Idempotency constraint in SQL | Two mock providers behind one interface and retry-safe payment attempts |
+| Payments | Mock Stripe and PayPal providers share one interface; payment attempts are idempotent and successful payment confirms the booking | Add provider failure simulations and production adapter |
 | Pricing | Organizer selects base or early-bird per event; selected strategy is applied during a hold and persisted per seat | Add pricing display refinement during checkout |
 | Notifications | SQL table only | In-app notifications and console email adapters |
 | Cancellation and refund | Customer cancellation releases claims transactionally and applies the full-refund-more-than-24-hours rule | Connect a real payment/refund provider after payment confirmation |

@@ -170,6 +170,8 @@ button {
 .hold-confirmation strong { color:#172443; font:600 18px 'Space Grotesk',sans-serif }
 .hold-confirmation p { color:#64718c; font-size:13px; margin:5px 0 0 }.hold-confirmation b { color:#27815f }
 .release-button { background:none; border:0; color:#b94c37; font-size:12px; font-weight:700; margin-top:12px; padding:0 }
+.provider-choice { color:#64718c; display:flex; flex-direction:column; font-size:12px; gap:6px; margin-top:14px }
+.provider-choice select { background:#fff; border:1px solid #dce4f5; border-radius:6px; color:#172443; font-size:13px; padding:9px }
 
 .modal-close {
   background:none;
