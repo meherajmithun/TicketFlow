@@ -15,12 +15,12 @@ flowchart LR
   BookingService -. future .-> Domain[Booking, hold, pricing, refund rules]
 ```
 
-The API exposes `/health` and account registration, login, and profile routes. `server.ts` wires the PostgreSQL pool, user repository, and auth service. `db:migrate` applies SQL files once and records them in `schema_migrations`. The browser still displays the event discovery shell. The booking domain rules remain pure functions awaiting application services.
+The API exposes `/health`, account registration/login/profile routes, organizer venue/event routes, and public published-event browsing. `server.ts` wires the PostgreSQL pool, user repository, event repository, and services. `db:migrate` applies SQL files once and records them in `schema_migrations`. The browser includes the account experience and discovery shell; organizer event-management screens remain. The booking domain rules remain pure functions awaiting application services.
 
 ## Layers to complete
 
-1. **HTTP**: auth routes, Zod input validation, bearer authentication, role checks, and consistent errors are present. Event and booking routes remain.
-2. **Application**: auth service is present. Booking workflows and organizer ownership checks remain; transactions belong here.
+1. **HTTP**: auth routes, Zod input validation, bearer authentication, role checks, and consistent errors are present. Venue/event creation and browse routes are present; booking routes remain.
+2. **Application**: auth and event services are present. Event creation validates organizer-owned venues and generates seat maps transactionally; booking workflows remain.
 3. **Domain**: booking status transitions, hold expiry, pricing, and refund policy.
 4. **Persistence**: user repository and migration runner are present. Event and booking repositories remain.
 5. **Integrations**: mock payment providers and notification channels.
@@ -30,7 +30,7 @@ The API exposes `/health` and account registration, login, and profile routes. `
 - **State machine**: `booking.ts` defines permitted transitions in one table. It prevents an invalid lifecycle change before persistence updates the booking and status history.
 - **Strategy**: `pricing.ts` maps an event's `base` or `early_bird` choice to a pricing function. A caller selects a strategy without embedding pricing branches in booking code.
 - **Dependency boundary**: the Express app is created from explicit configuration, so tests and deployment can provide different settings without changing domain code.
-- **Repository interface**: `AuthService` depends on `UserRepository`; PostgreSQL is an adapter. Tests use an in-memory implementation.
+- **Repository interface**: `AuthService` depends on `UserRepository`, and `EventService` depends on `EventRepository`; PostgreSQL is an adapter. Tests use in-memory implementations.
 - **Authentication boundary**: the role guard verifies an HMAC-signed, 12-hour bearer token. Passwords use salted scrypt hashes. Event routes must combine role checks with organizer ownership checks against the database.
 
 Payment providers and notification channels will use interfaces when those features are implemented. They are not represented as completed patterns yet.

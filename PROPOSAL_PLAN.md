@@ -5,7 +5,7 @@ The project PDF requires a live event booking system, not only a UI or schema. I
 | Requirement | Current state | Next implementation |
 | --- | --- | --- |
 | Authentication and roles | API registration, login, bearer authentication, role guard | Add UI forms and demo accounts |
-| Event management | SQL tables only | Organizer-owned venue, event, category, and seat-map workflows |
+| Event management | Organizer-owned venue and event APIs with generated row-by-seat maps and category prices | Add organizer event-management screens and editing/cancellation workflows |
 | Browse and search | Static page | Database-backed search by name, city, and date with filters and pagination |
 | Seat holds and no double booking | Domain expiry rule and SQL model | Transactional seat claims with conditional updates, expiry cleanup, and concurrency tests |
 | Booking lifecycle | Pure transition rule and status-history table | Booking service, status history, and ownership checks |

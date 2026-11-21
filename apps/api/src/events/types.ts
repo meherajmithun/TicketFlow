@@ -1,0 +1,53 @@
+export type EventStatus = 'draft' | 'published' | 'cancelled';
+export type PricingStrategy = 'base' | 'early_bird';
+
+export type Venue = {
+  id: string;
+  organizerId: string;
+  name: string;
+  city: string;
+  address: string;
+};
+
+export type SeatCategory = {
+  id: string;
+  name: string;
+  basePriceCents: number;
+};
+
+export type EventSeat = {
+  id: string;
+  rowLabel: string;
+  seatNumber: number;
+  categoryId: string;
+  categoryName: string;
+  basePriceCents: number;
+  available: boolean;
+};
+
+export type Event = {
+  id: string;
+  organizerId: string;
+  venue: Venue;
+  name: string;
+  description: string;
+  startsAt: string;
+  pricingStrategy: PricingStrategy;
+  status: EventStatus;
+  categories: SeatCategory[];
+  seats: EventSeat[];
+};
+
+export type CreateVenueInput = Omit<Venue, 'id' | 'organizerId'>;
+export type CreateEventInput = {
+  organizerId: string;
+  venueId: string;
+  name: string;
+  description: string;
+  startsAt: string;
+  pricingStrategy: PricingStrategy;
+  status: EventStatus;
+  rows: Array<{ label: string; category: string }>;
+  seatsPerRow: number;
+  categories: Array<{ name: string; basePriceCents: number }>;
+};
