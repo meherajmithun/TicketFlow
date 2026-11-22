@@ -415,6 +415,12 @@ button {
 .category-chip small { color:#4163d8; font-size:11px; font-weight:700 }
 .event-actions { align-items:center; background:linear-gradient(135deg,#f8faff,#eef3ff); border:1px solid #dbe5fb; border-radius:12px; display:flex; gap:14px; justify-content:flex-end; padding:12px 14px }
 .event-actions select { background:transparent; border:0; color:#64718c; font-size:14px; padding:10px }
+.status-choice { background:#e8eeff; border:1px solid #d0dcfa; border-radius:9px; display:flex; gap:4px; padding:4px }
+.status-choice button { background:transparent; border:0; border-radius:6px; color:#64718c; font-size:12px; font-weight:700; padding:9px 11px }
+.status-choice button.active { box-shadow:0 4px 10px #263c8014 }
+.status-choice button.draft-choice.active { background:#fff0ed; color:#b94c37 }
+.status-choice button.publish-choice.active { background:#edfaf4; color:#27815f }
+.status-choice button:disabled { cursor:not-allowed; opacity:.5 }
 .strategy-select { align-items:center; color:#8290a8; display:flex; font-size:12px; gap:5px }
 .strategy-select select { color:#4163d8; font-weight:700 }
 .primary-button { background:#4163d8; border:0; border-radius:8px; color:#fff; font-size:15px; font-weight:700; padding:15px 22px }
@@ -436,8 +442,8 @@ button {
 .event-details { min-width:0 }
 .event-details h3 { font:600 17px 'Space Grotesk',sans-serif; margin:5px 0 3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .event-details p { color:#8290a8; font-size:14px; margin:0 }
-.event-status { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase }
-.event-status.published { color:#27815f }.event-status.draft { color:#b47b2c }.event-status.cancelled { color:#b94c37 }
+.event-status { border-radius:999px; display:inline-block; font-size:11px; font-weight:800; letter-spacing:1.1px; padding:5px 9px; text-transform:uppercase }
+.event-status.published { background:#edfaf4; color:#27815f }.event-status.draft { background:#fff0ed; color:#b94c37 }.event-status.cancelled { background:#fff0ed; color:#b94c37 }
 .event-count { align-items:flex-end; display:flex; flex-direction:column }
 .event-count strong { font:700 21px 'Space Grotesk',sans-serif }.event-count span { color:#a2acc0; font-size:9px; font-weight:700; letter-spacing:1px }
 .publish-button { background:#e8eeff; border:0; border-radius:5px; color:#4163d8; font-size:11px; font-weight:700; margin-top:9px; padding:7px 10px }
@@ -873,6 +879,9 @@ button {
   .events-search .search-filters button { flex:1 1 100%; margin-left:0; text-align:left }
   .past-events-section { padding:0 20px 75px }
   .past-event-row { align-items:flex-start; flex-direction:column; gap:10px; padding:18px }
+  .event-actions { align-items:stretch; flex-direction:column }
+  .status-choice { justify-content:stretch }
+  .status-choice button { flex:1 }
   .studio-shell { padding:42px 20px 70px }
   .studio-intro { align-items:flex-start; gap:25px; margin-bottom:40px }
   .studio-intro h1 { font-size:48px; letter-spacing:-3px }
