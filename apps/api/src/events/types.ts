@@ -23,6 +23,7 @@ export type EventSeat = {
   categoryName: string;
   basePriceCents: number;
   available: boolean;
+  status: 'available' | 'held' | 'booked';
 };
 
 export type Event = {
@@ -54,3 +55,4 @@ export type CreateEventInput = {
   seatsPerRow: number;
   categories: Array<{ name: string; basePriceCents: number }>;
 };
+export type UpdateEventInput = CreateEventInput & { eventId: string };

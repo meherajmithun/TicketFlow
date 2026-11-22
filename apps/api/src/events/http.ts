@@ -33,6 +33,7 @@ export const createEventSchema = z.object({
 });
 
 export const eventStatusSchema = z.object({ status: z.enum(['published', 'cancelled']) }).strict();
+export const updateEventSchema = createEventSchema;
 
 export const eventSearchSchema = z.object({
   q: z.string().trim().max(120).optional(),

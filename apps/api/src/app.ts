@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { AppConfig } from './config.js';
 import { AuthError, type AuthService } from './auth/service.js';
 import { loginSchema, registerSchema, requireAuth } from './auth/http.js';
-import { createEventSchema, eventSearchSchema, eventStatusSchema, venueSchema } from './events/http.js';
+import { createEventSchema, eventSearchSchema, eventStatusSchema, updateEventSchema, venueSchema } from './events/http.js';
 import { EventError, EventService } from './events/service.js';
 import { holdSeatsSchema } from './booking/http.js';
 import { BookingError, BookingService } from './booking/service.js';
@@ -102,6 +102,14 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
       catch (error) { next(error); }
     });
 
+    app.patch('/events/organizer/:eventId', organizerAuth, async (request, response, next) => {
+      try {
+        const input = updateEventSchema.parse(request.body);
+        const categoryNames = new Map(input.categories.map((category) => [category.name.toLowerCase(), category.name]));
+        response.json({ event: await events.updateEvent({ eventId: request.params.eventId!, organizerId: response.locals.auth.sub, venueId: input.venueId, name: input.name, description: input.description, startsAt: input.startsAt, pricingStrategy: input.pricingStrategy, status: input.status, rows: input.seatMap.rows.map((row) => ({ label: row.label, category: categoryNames.get(row.category.toLowerCase())! })), seatsPerRow: input.seatMap.seatsPerRow, categories: input.categories }) });
+      } catch (error) { next(error); }
+    });
+
     app.patch('/events/organizer/:eventId/status', organizerAuth, async (request, response, next) => {
       try {
         const input = eventStatusSchema.parse(request.body);
@@ -192,7 +200,7 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
       return;
     }
     if (error instanceof EventError) {
-      response.status(error.code === 'NOT_OWNER' ? 403 : 404).json({ error: { code: error.code, message: error.message } });
+      response.status(error.code === 'NOT_OWNER' ? 403 : error.code === 'EVENT_HAS_BOOKINGS' ? 409 : 404).json({ error: { code: error.code, message: error.message } });
       return;
     }
     if (error instanceof BookingError) {

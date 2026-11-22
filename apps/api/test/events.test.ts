@@ -53,12 +53,20 @@ class MemoryEvents implements EventRepository {
         categoryName: row.category,
         basePriceCents: input.categories[0]!.basePriceCents,
         available: true,
+        status: 'available',
       }))),
     };
     this.events.set(event.id, event);
     return event;
   }
   async listOrganizerEvents(owner: string) { return [...this.events.values()].filter((event) => event.organizerId === owner); }
+  async updateEvent(input: CreateEventInput & { eventId: string }) {
+    const event = await this.findOrganizerEvent(input.organizerId, input.eventId);
+    if (!event) return null;
+    const updated = { ...event, name: input.name, description: input.description, startsAt: input.startsAt, pricingStrategy: input.pricingStrategy, status: input.status, categories: input.categories.map((category, index) => ({ id: `updated-${index}`, ...category })), seats: input.rows.flatMap((row, rowIndex) => Array.from({ length: input.seatsPerRow }, (_, index) => ({ id: `updated-seat-${rowIndex}-${index}`, rowLabel: row.label, seatNumber: index + 1, categoryId: input.categories[0]!.name, categoryName: row.category, basePriceCents: input.categories[0]!.basePriceCents, available: true, status: 'available' as const }))) };
+    this.events.set(event.id, updated);
+    return updated;
+  }
   async findOrganizerEvent(owner: string, id: string) { return this.events.get(id)?.organizerId === owner ? this.events.get(id)! : null; }
   async updateEventStatus(owner: string, id: string, status: 'published' | 'cancelled') {
     const event = await this.findOrganizerEvent(owner, id);
@@ -99,6 +107,12 @@ test('organizers create venues and events, while customers cannot manage them', 
     assert.equal(eventPayload.event.seats.length, 8);
     assert.equal((await fetch(`${base}/events/organizer`, { headers: customerHeaders })).status, 403);
     assert.equal((await fetch(`${base}/events/organizer/${eventId}`, { headers: { authorization: organizerHeaders.authorization } })).status, 200);
+    const updateResponse = await fetch(`${base}/events/organizer/${eventId}`, { method: 'PATCH', headers: organizerHeaders, body: JSON.stringify({
+      venueId, name: 'Summer Live Updated', description: 'Updated show', startsAt: '2099-06-02T18:00:00+00:00', pricingStrategy: 'early_bird', status: 'draft',
+      seatMap: { rows: [{ label: 'A', category: 'VIP' }], seatsPerRow: 2 }, categories: [{ name: 'VIP', basePriceCents: 5500 }],
+    }) });
+    assert.equal(updateResponse.status, 200);
+    assert.equal((await updateResponse.json() as { event: Event }).event.name, 'Summer Live Updated');
     const publishResponse = await fetch(`${base}/events/organizer/${eventId}/status`, { method: 'PATCH', headers: organizerHeaders, body: JSON.stringify({ status: 'published' }) });
     assert.equal(publishResponse.status, 200);
     assert.equal((await fetch(`${base}/events`)).status, 200);
