@@ -359,7 +359,7 @@ export function App() {
   function searchEvents(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     openEvents();
-    setSearchFocused(true);
+    setSearchFocused(false);
     void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: 1 });
     document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
   }
@@ -435,10 +435,10 @@ export function App() {
             <label htmlFor="event-search">What are you looking for?</label>
             <div className="search-row">
               <span className="search-icon" aria-hidden="true">⌕</span>
-              <input id="event-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search events or cities" />
+              <input id="event-search" value={query} onChange={(event) => { const value = event.target.value; setQuery(value); setSearchFocused(Boolean(value.trim())); }} placeholder="Search events or cities" />
               <button type="submit">Search <span aria-hidden="true">→</span></button>
             </div>
-            <div className="search-filters"><label>City <input value={cityFilter} onChange={(event) => setCityFilter(event.target.value)} placeholder="Any city" /></label><label>Date <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} /></label><button type="button" onClick={() => { setQuery(''); setCityFilter(''); setDateFilter(''); void loadPublicEvents({ page: 1 }); }}>Clear filters</button></div>
+            <div className="search-filters"><label>City <input value={cityFilter} onChange={(event) => setCityFilter(event.target.value)} placeholder="Any city" /></label><label>Date <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} /></label><button type="button" onClick={() => { setQuery(''); setCityFilter(''); setDateFilter(''); setSearchFocused(false); void loadPublicEvents({ page: 1 }); }}>Clear filters</button></div>
             {searchFocused && <div className="search-suggestions" role="listbox" aria-label="Available events">{suggestedEvents.length ? suggestedEvents.slice(0, 5).map((event) => <button type="button" role="option" key={event.id} onMouseDown={(clickEvent) => clickEvent.preventDefault()} onClick={() => { setQuery(event.name); setSearchFocused(false); }}>{event.name}<small>{event.venue.city} · {new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></button>) : <p className="no-suggestions">No published events match yet.</p>}</div>}
           </form>
           <div className="section-heading"><div><span className="section-kicker">DISCOVER</span><h2 id="events-title">Upcoming events</h2></div><span className="section-line" /></div>
