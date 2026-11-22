@@ -72,6 +72,9 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
       catch (error) { next(error); }
     });
 
+    app.patch('/venues/:venueId', organizerAuth, async (request, response, next) => { try { const input = venueSchema.parse(request.body); response.json({ venue: await events.updateVenue({ ...input, venueId: request.params.venueId!, organizerId: response.locals.auth.sub }) }); } catch (error) { next(error); } });
+    app.delete('/venues/:venueId', organizerAuth, async (request, response, next) => { try { await events.deleteVenue(response.locals.auth.sub, request.params.venueId!); response.status(204).send(); } catch (error) { next(error); } });
+
     app.post('/events/organizer', organizerAuth, async (request, response, next) => {
       try {
         const input = createEventSchema.parse(request.body);
@@ -200,7 +203,7 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
       return;
     }
     if (error instanceof EventError) {
-      response.status(error.code === 'NOT_OWNER' ? 403 : error.code === 'EVENT_HAS_BOOKINGS' ? 409 : 404).json({ error: { code: error.code, message: error.message } });
+      response.status(error.code === 'NOT_OWNER' ? 403 : error.code === 'EVENT_HAS_BOOKINGS' || error.code === 'VENUE_IN_USE' ? 409 : 404).json({ error: { code: error.code, message: error.message } });
       return;
     }
     if (error instanceof BookingError) {

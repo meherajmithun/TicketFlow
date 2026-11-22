@@ -1,10 +1,12 @@
 import type { Pool } from 'pg';
-import type { CreateEventInput, CreateVenueInput, Event, EventPage, EventSearch, UpdateEventInput, Venue } from './types.js';
-export type { CreateEventInput, CreateVenueInput, UpdateEventInput } from './types.js';
+import type { CreateEventInput, CreateVenueInput, Event, EventPage, EventSearch, UpdateEventInput, UpdateVenueInput, Venue } from './types.js';
+export type { CreateEventInput, CreateVenueInput, UpdateEventInput, UpdateVenueInput } from './types.js';
 
 export interface EventRepository {
   createVenue(organizerId: string, input: CreateVenueInput): Promise<Venue>;
   listVenues(organizerId: string): Promise<Venue[]>;
+  updateVenue(input: UpdateVenueInput): Promise<Venue | null>;
+  deleteVenue(organizerId: string, venueId: string): Promise<boolean>;
   createEvent(input: CreateEventInput): Promise<Event>;
   updateEvent(input: UpdateEventInput): Promise<Event | null>;
   listOrganizerEvents(organizerId: string): Promise<Event[]>;
@@ -67,6 +69,16 @@ export class PgEventRepository implements EventRepository {
       [organizerId],
     );
     return result.rows;
+  }
+
+  async updateVenue(input: UpdateVenueInput): Promise<Venue | null> {
+    const result = await this.pool.query<Venue>('UPDATE venues SET name = $3, city = $4, address = $5 WHERE organizer_id = $1 AND id = $2 RETURNING id, organizer_id AS "organizerId", name, city, address', [input.organizerId, input.venueId, input.name, input.city, input.address]);
+    return result.rows[0] ?? null;
+  }
+
+  async deleteVenue(organizerId: string, venueId: string): Promise<boolean> {
+    const result = await this.pool.query('DELETE FROM venues WHERE organizer_id = $1 AND id = $2 AND NOT EXISTS (SELECT 1 FROM events WHERE venue_id = venues.id)', [organizerId, venueId]);
+    return Boolean(result.rowCount);
   }
 
   async createEvent(input: CreateEventInput): Promise<Event> {

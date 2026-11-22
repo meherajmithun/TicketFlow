@@ -45,10 +45,13 @@ Organizer routes require an organizer bearer token. An organizer can only list a
 | --- | --- |
 | `POST /venues` | Create an organizer-owned venue |
 | `GET /venues` | List the authenticated organizer's venues |
+| `PATCH /venues/:venueId` | Edit an organizer-owned venue |
+| `DELETE /venues/:venueId` | Delete an unused organizer-owned venue |
 | `POST /events/organizer` | Create a draft or published event with venue, date-time, categories, and seat map |
 | `GET /events/organizer` | List the authenticated organizer's events |
 | `GET /events/organizer/:eventId` | Retrieve an owned event and its seats |
 | `PATCH /events/organizer/:eventId/status` | Publish or cancel an owned event |
+| `PATCH /events/organizer/:eventId` | Edit an owned event, including its schedule, pricing, categories, and seat map |
 | `GET /events` | Browse future published events with optional `q`, `city`, `date`, `page`, and `pageSize` filters |
 | `GET /events/:eventId` | View one future published event and its seats |
 | `POST /bookings/holds` | Customer-only five-minute hold for selected seat IDs |
