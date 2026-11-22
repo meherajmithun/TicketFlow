@@ -247,7 +247,7 @@ export function App() {
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [publicEvents, setPublicEvents] = useState<BrowseEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
-  const [eventsOpen, setEventsOpen] = useState(false);
+  const [eventsOpen, setEventsOpen] = useState(() => window.location.hash === '#events');
   const [searchFocused, setSearchFocused] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<BrowseEvent | null>(null);
   const [cityFilter, setCityFilter] = useState('');
@@ -274,6 +274,13 @@ export function App() {
     if (session?.user.role !== 'customer') { setNotifications([]); return; }
     void apiRequest<{ notifications: AppNotification[] }>('/notifications', session.token).then((payload) => setNotifications(payload.notifications)).catch(() => setNotifications([]));
   }, [session]);
+
+  useEffect(() => {
+    const handleHistoryChange = () => setEventsOpen(window.location.hash === '#events');
+    window.addEventListener('popstate', handleHistoryChange);
+    window.addEventListener('hashchange', handleHistoryChange);
+    return () => { window.removeEventListener('popstate', handleHistoryChange); window.removeEventListener('hashchange', handleHistoryChange); };
+  }, []);
 
   async function readNotification(notificationId: string) {
     if (!session) return;
@@ -310,7 +317,14 @@ export function App() {
 
   function openEvents() {
     setEventsOpen(true);
+    if (window.location.hash !== '#events') window.history.pushState({ view: 'events' }, '', '#events');
     window.setTimeout(() => document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' }), 0);
+  }
+
+  function openLanding() {
+    setEventsOpen(false);
+    if (window.location.hash) window.history.pushState({ view: 'landing' }, '', '#top');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function submitAuth(event: FormEvent<HTMLFormElement>) {
@@ -363,7 +377,7 @@ export function App() {
   return (
     <div className="site-shell">
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="TicketFlow home">
+        <a className="brand" href="#top" aria-label="TicketFlow home" onClick={(event) => { event.preventDefault(); openLanding(); }}>
           <span className="brand-mark"><span /><span /><span /><span /></span>
           <span>ticketflow<span className="brand-period">.</span></span>
         </a>
@@ -417,17 +431,17 @@ export function App() {
           {eventsLoading ? <div className="empty-events"><div className="empty-symbol" aria-hidden="true">↗</div><div><h3>Finding the next good night.</h3><p>Loading published events.</p></div></div> : visibleEvents.length ? <><div className="public-event-grid">{visibleEvents.map((event) => <article className="public-event-card" key={event.id} role="button" tabIndex={0} aria-label={`View details for ${event.name}`} onClick={() => setSelectedEvent(event)} onKeyDown={(keyboardEvent) => { if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') { keyboardEvent.preventDefault(); setSelectedEvent(event); } }}><div className="public-event-top"><span className="event-status published">UPCOMING</span><button type="button" className="event-date-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>{new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}</button></div><button type="button" className="event-title-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>{event.name}</button><p>{event.venue.name} · <button type="button" className="city-filter-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); filterByCity(event.venue.city); }}>{event.venue.city}</button></p><div className="public-event-meta"><span>{event.seats.filter((seat) => seat.available).length} seats available</span><span>From {Math.min(...event.categories.map((category) => category.basePriceCents))}</span></div><button type="button" className="event-details-button" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>View details <span aria-hidden="true">→</span></button></article>)}</div>{totalPages > 1 && <div className="pagination"><button disabled={page === 1} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page - 1 })}>← Previous</button><span>Page {page} of {totalPages}</span><button disabled={page === totalPages} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page + 1 })}>Next →</button></div>}</> : <div className="empty-events"><div className="empty-symbol" aria-hidden="true">✳</div><div><h3>{submittedQuery ? `No events found for “${submittedQuery}”` : 'The calendar is getting ready.'}</h3><p>{submittedQuery ? 'Try another event name or city when events are available.' : 'Published events will appear here as soon as organizers add them.'}</p></div></div>}
         </section>}
 
-        <section className="how-section" id="how-it-works" aria-labelledby="how-title">
+        {!eventsOpen && <section className="how-section" id="how-it-works" aria-labelledby="how-title">
           <div><span className="section-kicker">THE FLOW</span><h2 id="how-title">From “let’s go”<br />to front row.</h2></div>
           <div className="steps">
             <div><span>01</span><h3>Find an event</h3><p>Browse what’s happening and choose your date.</p></div>
             <div><span>02</span><h3>Pick your seat</h3><p>See the venue map and hold the spot you want.</p></div>
             <div><span>03</span><h3>Keep your ticket</h3><p>Pay securely and find your booking in one place.</p></div>
           </div>
-        </section>
+        </section>}
         </>}
       </main>
-      <footer className="site-footer"><span>ticketflow<span className="brand-period">.</span></span><span>Made for the moments that matter.</span></footer>
+      {!eventsOpen && <footer className="site-footer"><span>ticketflow<span className="brand-period">.</span></span><span>Made for the moments that matter.</span></footer>}
       {authOpen && (
         <div className="modal-backdrop auth-page-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAuthOpen(false); }}>
           <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
