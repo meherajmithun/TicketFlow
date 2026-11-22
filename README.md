@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/meherajmithun/TicketFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/meherajmithun/TicketFlow/actions/workflows/ci.yml)
 
-TicketFlow is an event ticket booking project for CPS Academy InterviewQuest-3. The API now has PostgreSQL-backed account registration and login, signed bearer tokens, and reusable role checks. The web app is still a discovery shell. Event management, seat reservation, payments, notifications, and deployment remain to be built.
+TicketFlow is an event ticket booking project for CPS Academy InterviewQuest-3. The API has PostgreSQL-backed account registration and login, signed bearer tokens, reusable role checks, and organizer-owned venue/event management. The web app includes the account experience, discovery shell, and organizer studio; seat reservation, payments, notifications, and deployment remain to be built.
 
 ## Requirements
 
@@ -33,9 +33,33 @@ The migration runner records applied SQL files in `schema_migrations`, so runnin
 
 | Route | Body or header | Result |
 | --- | --- | --- |
-| `POST /auth/register` | JSON: `email`, `password` (12–128 characters), `role` (`organizer` or `customer`) | `201` with a user and bearer token |
+| `POST /auth/register` | JSON: `email`, `password` (5–128 characters), `role` (`organizer` or `customer`) | `201` with a user and bearer token |
 | `POST /auth/login` | JSON: `email`, `password` | User and bearer token |
 | `GET /auth/me` | `Authorization: Bearer <token>` | Authenticated user ID and role |
+
+## Event management API
+
+Organizer routes require an organizer bearer token. An organizer can only list and retrieve their own venues and events. Event creation generates every seat in the requested row-by-seat map and assigns each row to a defined priced category.
+
+| Route | Result |
+| --- | --- |
+| `POST /venues` | Create an organizer-owned venue |
+| `GET /venues` | List the authenticated organizer's venues |
+| `POST /events/organizer` | Create a draft or published event with venue, date-time, categories, and seat map |
+| `GET /events/organizer` | List the authenticated organizer's events |
+| `GET /events/organizer/:eventId` | Retrieve an owned event and its seats |
+| `PATCH /events/organizer/:eventId/status` | Publish or cancel an owned event |
+| `GET /events` | Browse future published events with optional `q`, `city`, `date`, `page`, and `pageSize` filters |
+| `GET /events/:eventId` | View one future published event and its seats |
+| `POST /bookings/holds` | Customer-only five-minute hold for selected seat IDs |
+| `GET /bookings` | List the authenticated customer's bookings and holds |
+| `POST /bookings/:bookingId/cancel` | Cancel an owned held/confirmed booking and calculate its refund |
+| `POST /bookings/:bookingId/payment` | Move an owned held booking to pending payment |
+| `POST /bookings/:bookingId/confirm` | Confirm an owned pending-payment booking through the mock payment step |
+| `GET /bookings/:bookingId/history` | Read the owned booking's status history |
+| `POST /bookings/:bookingId/pay` | Charge a pending booking through `stripe` or `paypal` using an idempotency key |
+| `GET /notifications` | List the authenticated customer's in-app notifications |
+| `POST /notifications/:notificationId/read` | Mark an in-app notification as read |
 
 Tokens expire after 12 hours. Passwords are stored as salted scrypt hashes. The role guard is ready for organizer and customer routes, but no event or booking routes exist yet.
 

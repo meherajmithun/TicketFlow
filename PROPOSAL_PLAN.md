@@ -5,14 +5,14 @@ The project PDF requires a live event booking system, not only a UI or schema. I
 | Requirement | Current state | Next implementation |
 | --- | --- | --- |
 | Authentication and roles | API registration, login, bearer authentication, role guard | Add UI forms and demo accounts |
-| Event management | SQL tables only | Organizer-owned venue, event, category, and seat-map workflows |
-| Browse and search | Static page | Database-backed search by name, city, and date with filters and pagination |
-| Seat holds and no double booking | Domain expiry rule and SQL model | Transactional seat claims with conditional updates, expiry cleanup, and concurrency tests |
-| Booking lifecycle | Pure transition rule and status-history table | Booking service, status history, and ownership checks |
-| Payments | Idempotency constraint in SQL | Two mock providers behind one interface and retry-safe payment attempts |
-| Pricing | Base and early-bird strategies | Apply selected strategy during a hold and persist seat prices |
-| Notifications | SQL table only | In-app notifications and console email adapters |
-| Cancellation and refund | Pure refund rule | Transactional cancellation, claim release, and refund workflow |
+| Event management | Organizer-owned venue/event APIs plus organizer dashboard for venue, date-time, seat-map, category, and price setup | Add event editing/cancellation workflows |
+| Browse and search | Database-backed public event cards, suggestions, and name/city/date filters with pagination | Add richer filter controls and event detail navigation |
+| Seat holds and no double booking | Customer seat picker and five-minute transactional holds with PostgreSQL row locks | Add explicit expiry cleanup job and two-user PostgreSQL race test |
+| Booking lifecycle | Held → pending payment → confirmed/expired/cancelled transitions, history, expiry cleanup, and customer controls | Connect real payment attempts and notifications |
+| Payments | Mock Stripe and PayPal providers share one interface; payment attempts are idempotent and successful payment confirms the booking | Add provider failure simulations and production adapter |
+| Pricing | Organizer selects base or early-bird per event; selected strategy is applied during a hold and persisted per seat | Add pricing display refinement during checkout |
+| Notifications | Confirmation/cancellation fan-out to in-app storage and console email adapters behind a channel interface | Add richer email templates and additional channels |
+| Cancellation and refund | Customer cancellation releases claims transactionally and applies the full-refund-more-than-24-hours rule | Connect a real payment/refund provider after payment confirmation |
 | Delivery | CI exists | Host database, API, and web app; add CD on merge to `main` |
 
 Build each row on a focused branch with a pull request. The next feature after this auth foundation should be event management and browsing because seat booking needs published events and generated seats. Then implement transactional holds before payment or UI checkout. Verify the two-user same-seat race against PostgreSQL before submission. Keep bonus features until all mandatory rows are complete.
