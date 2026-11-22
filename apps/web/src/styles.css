@@ -172,6 +172,11 @@ button {
 .category-legend-item strong { color:#172443; font-weight:700 }
 .category-legend-item span:last-child { color:#4163d8; font-weight:700 }
 .category-dot { background:#ee785f; border-radius:50%; display:inline-block; height:7px; width:7px }
+.seat-status-legend { align-items:center; color:#8290a8; display:flex; flex-wrap:wrap; font-size:11px; gap:12px 18px; margin:14px 2px 10px }
+.seat-status-legend span { align-items:center; display:inline-flex; gap:6px }
+.seat-status-dot { background:#dbe4fb; border-radius:50%; display:inline-block; height:8px; width:8px }
+.seat-status-dot.selected { background:#ee785f }
+.seat-status-dot.unavailable { background:#aab4c9 }
 .seat-picker { background:#f7f9ff; border-radius:12px; display:grid; gap:10px; padding:20px 15px }
 .seat-row { align-items:center; display:grid; gap:12px; grid-template-columns:110px 1fr }
 .seat-row-label { display:grid; gap:2px; min-width:0 }
@@ -181,7 +186,9 @@ button {
 .seat-row>div:last-child { display:flex; flex-wrap:wrap; gap:8px }
 .picker-seat { background:#dbe4fb; border:0; border-radius:5px 5px 8px 8px; color:#4163d8; cursor:pointer; font-size:10px; font-weight:700; height:32px; width:32px }
 .picker-seat:hover,.picker-seat.chosen { background:#ee785f; color:#fff; transform:translateY(-2px) }
-.picker-seat.unavailable { background:#d7dce8; color:#a2acc0; cursor:not-allowed; opacity:.75 }
+.picker-seat.unavailable { background:#d7dce8; color:#8f9aae; cursor:not-allowed; opacity:.9; position:relative }
+.picker-seat.unavailable::before { border-top:2px solid #aab4c9; content:''; left:5px; position:absolute; right:5px; top:50%; transform:rotate(-35deg) }
+.picker-seat small { font-size:12px; font-weight:800; line-height:1; position:absolute; right:5px; top:3px }
 .booking-footer { align-items:center; border-top:1px solid #dce4f5; display:flex; justify-content:space-between; margin-top:22px; padding-top:20px }
 .booking-footer>div { display:flex; flex-direction:column; gap:5px; color:#8290a8; font-size:13px }
 .booking-footer strong { color:#172443; font:600 19px 'Space Grotesk',sans-serif }
