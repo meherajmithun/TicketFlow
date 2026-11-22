@@ -112,7 +112,7 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     app.get('/events', async (_request, response, next) => {
       try {
         const search = eventSearchSchema.parse(_request.query);
-        response.json(await events.listPublishedEvents({ query: search.q, city: search.city, date: search.date, page: search.page, pageSize: search.pageSize }));
+        response.json(await events.listPublishedEvents({ query: search.q, city: search.city, date: search.date, past: search.past, page: search.page, pageSize: search.pageSize }));
       }
       catch (error) { next(error); }
     });
