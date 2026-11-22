@@ -340,6 +340,13 @@ button {
 .studio-notice { background:#fff6e9; border-left:4px solid #ee785f; color:#8c6332; font-size:15px; margin-bottom:22px; padding:16px 18px }
 .map-builder,.category-builder { background:#e8eeff; border-radius:12px; padding:20px }
 .category-builder { background:#f0f3fb }
+.setup-step { border:1px solid #dbe4fb; box-shadow:0 8px 24px #263c8008; padding:24px 22px }
+.setup-step-heading { align-items:flex-start; display:flex; gap:12px; margin-bottom:22px }
+.setup-step-heading>div:nth-child(2) { flex:1 }
+.setup-step-number { color:#4163d8; font:700 20px/1 'Space Grotesk',sans-serif; letter-spacing:-.5px; padding-top:1px }
+.setup-step-heading .form-label { color:#4163d8 }
+.setup-step-heading p { color:#64718c; font-size:14px; line-height:1.4; margin:8px 0 0 }
+.setup-step-caption { color:#8290a8; font-size:11px; font-weight:700; letter-spacing:1.2px }
 .builder-heading { align-items:flex-start; display:flex; justify-content:space-between; margin-bottom:16px }
 .builder-heading p { color:#64718c; font-size:14px; line-height:1.4; margin:8px 0 0 }
 .builder-heading b { color:#4163d8; font-weight:700 }
@@ -357,6 +364,7 @@ button {
 .row-plan-row select:focus { border-color:#4163d8; outline:2px solid #4163d833 }
 .row-seat-count { align-items:end; margin-top:16px }
 .row-seat-count .field-hint { padding-bottom:10px }
+.row-seat-count { border-top:1px solid #dce4f5; padding-top:16px }
 .category-row { align-items:center; display:grid; gap:9px; grid-template-columns:28px 1fr 130px 24px; margin-top:9px }
 .category-input { display:grid; gap:5px }
 .category-input label { color:#8290a8; font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase }
