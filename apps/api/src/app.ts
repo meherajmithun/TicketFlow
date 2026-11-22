@@ -147,14 +147,6 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
       try { response.json({ booking: await bookings.transitionBooking(response.locals.auth.sub, request.params.bookingId!, 'pending_payment') }); }
       catch (error) { next(error); }
     });
-    app.post('/bookings/:bookingId/confirm', customerAuth, async (request, response, next) => {
-      try {
-        const booking = await bookings.transitionBooking(response.locals.auth.sub, request.params.bookingId!, 'confirmed');
-        if (notifications) await notifications.publish({ userId: response.locals.auth.sub, bookingId: booking.bookingId, type: 'booking_confirmed', message: 'Your booking has been confirmed.' });
-        response.json({ booking });
-      }
-      catch (error) { next(error); }
-    });
     app.get('/bookings/:bookingId/history', customerAuth, async (request, response, next) => {
       try { response.json({ history: await bookings.statusHistory(response.locals.auth.sub, request.params.bookingId!) }); }
       catch (error) { next(error); }

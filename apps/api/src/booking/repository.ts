@@ -86,7 +86,7 @@ export class PgBookingRepository {
     } finally { client.release(); }
   }
 
-  async transitionBooking(customerId: string, bookingId: string, toStatus: 'pending_payment' | 'confirmed'): Promise<BookingTransition> {
+  async transitionBooking(customerId: string, bookingId: string, toStatus: 'pending_payment'): Promise<BookingTransition> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -99,7 +99,6 @@ export class PgBookingRepository {
       if (expiry.rows[0]?.hold_expires_at && expiry.rows[0].hold_expires_at.getTime() <= Date.now()) throw new BookingError('BOOKING_NOT_ACTIVE');
       try { transitionBooking(booking.status, toStatus); } catch { throw new BookingError('INVALID_TRANSITION'); }
       await client.query(`UPDATE bookings SET status = $2, updated_at = now() WHERE id = $1`, [bookingId, toStatus]);
-      if (toStatus === 'confirmed') await client.query(`UPDATE event_seats SET hold_expires_at = NULL, confirmed_at = now() WHERE current_booking_id = $1`, [bookingId]);
       await client.query(`INSERT INTO booking_status_history (booking_id, from_status, to_status) VALUES ($1, $2, $3)`, [bookingId, booking.status, toStatus]);
       await client.query('COMMIT');
       return { bookingId, status: toStatus };
