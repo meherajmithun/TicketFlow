@@ -1,11 +1,12 @@
 import type { Pool } from 'pg';
-import type { CreateEventInput, CreateVenueInput, Event, EventPage, EventSearch, Venue } from './types.js';
-export type { CreateEventInput, CreateVenueInput } from './types.js';
+import type { CreateEventInput, CreateVenueInput, Event, EventPage, EventSearch, UpdateEventInput, Venue } from './types.js';
+export type { CreateEventInput, CreateVenueInput, UpdateEventInput } from './types.js';
 
 export interface EventRepository {
   createVenue(organizerId: string, input: CreateVenueInput): Promise<Venue>;
   listVenues(organizerId: string): Promise<Venue[]>;
   createEvent(input: CreateEventInput): Promise<Event>;
+  updateEvent(input: UpdateEventInput): Promise<Event | null>;
   listOrganizerEvents(organizerId: string): Promise<Event[]>;
   findOrganizerEvent(organizerId: string, eventId: string): Promise<Event | null>;
   updateEventStatus(organizerId: string, eventId: string, status: 'published' | 'cancelled'): Promise<Event | null>;
@@ -18,7 +19,7 @@ type EventRow = {
   name: string; description: string; starts_at: Date; pricing_strategy: Event['pricingStrategy']; status: Event['status'];
 };
 type CategoryRow = { id: string; name: string; base_price_cents: number };
-type SeatRow = { id: string; row_label: string; seat_number: number; category_id: string; category_name: string; base_price_cents: number; current_booking_id: string | null; hold_expires_at: Date | null };
+type SeatRow = { id: string; row_label: string; seat_number: number; category_id: string; category_name: string; base_price_cents: number; current_booking_id: string | null; hold_expires_at: Date | null; confirmed_at: Date | null };
 
 function mapEvent(row: EventRow, categories: CategoryRow[], seats: SeatRow[]): Event {
   const now = Date.now();
@@ -32,15 +33,19 @@ function mapEvent(row: EventRow, categories: CategoryRow[], seats: SeatRow[]): E
     pricingStrategy: row.pricing_strategy,
     status: row.status,
     categories: categories.map((category) => ({ id: category.id, name: category.name, basePriceCents: category.base_price_cents })),
-    seats: seats.map((seat) => ({
+    seats: seats.map((seat) => {
+      const status = seat.confirmed_at ? 'booked' : seat.current_booking_id && (seat.hold_expires_at?.getTime() ?? 0) > now ? 'held' : 'available';
+      return {
       id: seat.id,
       rowLabel: seat.row_label,
       seatNumber: seat.seat_number,
       categoryId: seat.category_id,
       categoryName: seat.category_name,
       basePriceCents: seat.base_price_cents,
-      available: !seat.current_booking_id || (seat.hold_expires_at?.getTime() ?? 0) <= now,
-    })),
+      available: status === 'available',
+      status,
+      };
+    }),
   };
 }
 
@@ -111,6 +116,35 @@ export class PgEventRepository implements EventRepository {
     return this.findMany('e.organizer_id = $1', [organizerId]);
   }
 
+  async updateEvent(input: UpdateEventInput): Promise<Event | null> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const owned = await client.query<{ id: string }>('SELECT id FROM events WHERE id = $1 AND organizer_id = $2 FOR UPDATE', [input.eventId, input.organizerId]);
+      if (!owned.rows[0]) { await client.query('ROLLBACK'); return null; }
+      const venue = await client.query<{ id: string }>('SELECT id FROM venues WHERE id = $1 AND organizer_id = $2', [input.venueId, input.organizerId]);
+      if (!venue.rows[0]) throw new Error('VENUE_NOT_FOUND_OR_NOT_OWNED');
+      const bookings = await client.query<{ count: string }>(`SELECT count(*) FROM booking_seats bs JOIN event_seats s ON s.id = bs.event_seat_id WHERE s.event_id = $1`, [input.eventId]);
+      if (Number(bookings.rows[0]?.count ?? 0) > 0) throw new Error('EVENT_HAS_BOOKINGS');
+      await client.query(`UPDATE events SET venue_id = $2, name = $3, description = $4, starts_at = $5, pricing_strategy = $6, status = $7 WHERE organizer_id = $1 AND id = $8`, [input.organizerId, input.venueId, input.name, input.description, input.startsAt, input.pricingStrategy, input.status, input.eventId]);
+      await client.query('DELETE FROM event_seats WHERE event_id = $1', [input.eventId]);
+      await client.query('DELETE FROM seat_categories WHERE event_id = $1', [input.eventId]);
+      const categories = new Map<string, CategoryRow>();
+      for (const category of input.categories) {
+        const result = await client.query<CategoryRow>('INSERT INTO seat_categories (event_id, name, base_price_cents) VALUES ($1, $2, $3) RETURNING id, name, base_price_cents', [input.eventId, category.name, category.basePriceCents]);
+        categories.set(category.name, result.rows[0]!);
+      }
+      for (const row of input.rows) {
+        const category = categories.get(row.category);
+        if (!category) throw new Error('CATEGORY_NOT_FOUND');
+        for (let seatNumber = 1; seatNumber <= input.seatsPerRow; seatNumber += 1) await client.query('INSERT INTO event_seats (event_id, category_id, row_label, seat_number) VALUES ($1, $2, $3, $4)', [input.eventId, category.id, row.label, seatNumber]);
+      }
+      await client.query('COMMIT');
+      return this.findOrganizerEvent(input.organizerId, input.eventId);
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+  }
+
   async findOrganizerEvent(organizerId: string, eventId: string): Promise<Event | null> {
     const events = await this.findMany('e.organizer_id = $1 AND e.id = $2', [organizerId, eventId]);
     return events[0] ?? null;
@@ -159,7 +193,7 @@ export class PgEventRepository implements EventRepository {
         this.pool.query<CategoryRow>('SELECT id, name, base_price_cents FROM seat_categories WHERE event_id = $1 ORDER BY base_price_cents, name', [row.id]),
         this.pool.query<SeatRow>(
           `SELECT s.id, s.row_label, s.seat_number, s.category_id, c.name AS category_name,
-                  c.base_price_cents, s.current_booking_id, s.hold_expires_at
+                  c.base_price_cents, s.current_booking_id, s.hold_expires_at, s.confirmed_at
            FROM event_seats s JOIN seat_categories c ON c.id = s.category_id
            WHERE s.event_id = $1 ORDER BY s.row_label, s.seat_number`, [row.id],
         ),

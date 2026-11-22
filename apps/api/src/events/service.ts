@@ -1,9 +1,9 @@
-import type { CreateEventInput, CreateVenueInput, EventRepository } from './repository.js';
+import type { CreateEventInput, CreateVenueInput, EventRepository, UpdateEventInput } from './repository.js';
 import type { EventSearch } from './types.js';
 
 export class EventError extends Error {
-  constructor(public readonly code: 'VENUE_NOT_FOUND' | 'EVENT_NOT_FOUND' | 'NOT_OWNER') {
-    super(code === 'EVENT_NOT_FOUND' ? 'Event not found' : code === 'VENUE_NOT_FOUND' ? 'Venue not found or not owned by this organizer' : 'You do not own this event');
+  constructor(public readonly code: 'VENUE_NOT_FOUND' | 'EVENT_NOT_FOUND' | 'NOT_OWNER' | 'EVENT_HAS_BOOKINGS') {
+    super(code === 'EVENT_NOT_FOUND' ? 'Event not found' : code === 'EVENT_HAS_BOOKINGS' ? 'This event cannot change its seat layout after bookings exist' : code === 'VENUE_NOT_FOUND' ? 'Venue not found or not owned by this organizer' : 'You do not own this event');
   }
 }
 
@@ -29,6 +29,11 @@ export class EventService {
 
   listOrganizerEvents(organizerId: string) {
     return this.events.listOrganizerEvents(organizerId);
+  }
+
+  async updateEvent(input: UpdateEventInput) {
+    try { const event = await this.events.updateEvent(input); if (!event) throw new EventError('EVENT_NOT_FOUND'); return event; }
+    catch (error) { if (error instanceof Error && error.message === 'EVENT_HAS_BOOKINGS') throw new EventError('EVENT_HAS_BOOKINGS'); if (error instanceof Error && error.message === 'VENUE_NOT_FOUND_OR_NOT_OWNED') throw new EventError('VENUE_NOT_FOUND'); throw error; }
   }
 
   async getOrganizerEvent(organizerId: string, eventId: string) {

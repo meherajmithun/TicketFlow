@@ -214,6 +214,18 @@ button {
 .picker-seat.unavailable { background:linear-gradient(135deg,#ffd8d0,#f3a090); border:1px solid #e45d49; color:#a83f31; cursor:not-allowed; opacity:1; position:relative }
 .picker-seat.unavailable::before { border-top:2px solid #b94c37; content:''; left:5px; position:absolute; right:5px; top:50%; transform:rotate(-35deg) }
 .picker-seat small { font-size:12px; font-weight:800; line-height:1; position:absolute; right:5px; top:3px }
+.seat-status-dot.available { background:#35a875 }
+.seat-status-dot.held { background:#e7a33c }
+.seat-status-dot.booked { background:#d94f45 }
+.picker-seat.available { background:#e9f8f0; border:1px solid #b8e5ce; color:#27815f }
+.picker-seat.available:hover,.picker-seat.available.chosen { background:#ee785f; border-color:#ee785f; color:#fff; transform:translateY(-2px) }
+.picker-seat.held { background:#fff1d8; border:1px solid #efc36d; color:#b47721; cursor:not-allowed }
+.picker-seat.booked { background:#ffe0dc; border:1px solid #e45d49; color:#b33f32; cursor:not-allowed }
+.picker-seat.unavailable:hover { transform:none; }
+.picker-seat.held:hover { background:#fff1d8; color:#b47721; }
+.picker-seat.booked:hover { background:#ffe0dc; color:#b33f32; }
+.edit-button { background:#edf2ff; border:1px solid #ccd9ff; border-radius:8px; color:#3158c9; cursor:pointer; font-size:11px; font-weight:800; padding:7px 10px; text-transform:uppercase; letter-spacing:.08em }
+.edit-button:hover { background:#dce6ff; }
 .booking-footer { align-items:center; border-top:1px solid #dce4f5; display:flex; justify-content:space-between; margin-top:22px; padding-top:20px }
 .booking-footer>div { display:flex; flex-direction:column; gap:5px; color:#8290a8; font-size:13px }
 .booking-footer strong { color:#172443; font:600 19px 'Space Grotesk',sans-serif }
