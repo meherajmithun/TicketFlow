@@ -1,9 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 :root {
+  --ink:#172443;
+  --muted:#64718c;
+  --subtle:#8290a8;
+  --cobalt:#4163d8;
+  --cobalt-deep:#294abf;
+  --coral:#ee785f;
+  --surface:#fff;
+  --wash:#f7f9ff;
+  --line:#dce4f5;
+  --shadow:0 18px 45px #263c8012;
   font-family:'DM Sans',sans-serif;
-  color:#172443;
-  background:#f7f9ff;
+  color:var(--ink);
+  background:var(--wash);
   font-synthesis:none;
   font-synthesis-weight:none}
 
@@ -14,7 +24,8 @@ html {
   scroll-behavior:smooth}
 
 body {
-  margin:0}
+  margin:0;
+  line-height:1.45}
 
 button,input {
   font:inherit}
@@ -818,6 +829,19 @@ button {
 .pagination button:hover:not(:disabled) { border-color:#4163d8 }.pagination button:disabled { color:#a2acc0; cursor:not-allowed }
 .pagination span { color:#8290a8; font-size:12px }
 
+/* Shared visual finish: a calm paper-white surface, cobalt actions, and coral moments. */
+.site-header { background:#f7f9ffdd; border-bottom:1px solid #e8edf8; position:relative; z-index:5 }
+.primary-button,.auth-submit,.event-details-button,.hero-cta,.search button { background:linear-gradient(135deg,#4a6be0,#3859ca); box-shadow:0 9px 18px #4163d826; transition:background .2s,box-shadow .2s,transform .2s }
+.primary-button:hover,.auth-submit:hover,.event-details-button:hover,.hero-cta:hover,.search button:hover { background:linear-gradient(135deg,#3859ca,#243fa8); box-shadow:0 12px 24px #294abf33; transform:translateY(-1px) }
+.public-event-card,.event-card,.event-empty,.setup-step,.auth-modal,.booking-modal { box-shadow:var(--shadow) }
+.public-event-card { border-color:#d7e1f5; border-radius:16px; padding:24px; }
+.public-event-card:hover { border-color:#9fb1f2; box-shadow:0 20px 38px #263c8020 }
+.event-details-button { border-radius:8px; font-size:13px; padding:12px 14px }
+.booking-modal,.auth-modal { border:1px solid #e1e8f7 }
+.studio-shell { border-top:1px solid #e8edf8 }
+.studio-sidebar,.studio-rule,.venue-form { border-color:#d7e1f5 }
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus,.venue-form input:focus,.event-form input:focus,.event-form select:focus,.event-form textarea:focus { box-shadow:0 0 0 4px #4163d81a }
+
 @media (max-width:720px) {
   .site-header { height:auto; padding:22px 20px; flex-wrap:wrap }
   .site-header nav { order:3; width:100%; justify-content:center; gap:24px }
@@ -830,6 +854,12 @@ button {
   .booking-footer .primary-button { width:100% }
   .booking-action { align-items:stretch; }
   .booking-login-hint { text-align:left }
+  .events-page-intro { margin-bottom:28px }
+  .events-page-intro h1 { font-size:44px; letter-spacing:-2.5px }
+  .events-search { margin-bottom:42px }
+  .events-search .search-filters { align-items:stretch; flex-wrap:wrap }
+  .events-search .search-filters label { flex:1 1 145px }
+  .events-search .search-filters button { flex:1 1 100%; margin-left:0; text-align:left }
   .studio-shell { padding:42px 20px 70px }
   .studio-intro { align-items:flex-start; gap:25px; margin-bottom:40px }
   .studio-intro h1 { font-size:48px; letter-spacing:-3px }
@@ -876,6 +906,8 @@ button {
 
 .hero-copy>p {
   font-size:15px}
+
+.events-page-intro p { font-size:14px }
 
 .hero-visual {
   min-height:340px}
