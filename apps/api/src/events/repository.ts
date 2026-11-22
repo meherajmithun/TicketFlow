@@ -123,7 +123,7 @@ export class PgEventRepository implements EventRepository {
   }
 
   async listPublishedEvents(search: EventSearch): Promise<EventPage> {
-    const filters = ["e.status = 'published'", 'e.starts_at > now()'];
+    const filters = ["e.status = 'published'", search.past ? 'e.starts_at <= now()' : 'e.starts_at > now()'];
     const params: unknown[] = [];
     if (search.query) { params.push(`%${search.query}%`); filters.push(`(e.name ILIKE $${params.length} OR e.description ILIKE $${params.length} OR v.name ILIKE $${params.length} OR v.city ILIKE $${params.length})`); }
     if (search.city) { params.push(`%${search.city}%`); filters.push(`v.city ILIKE $${params.length}`); }

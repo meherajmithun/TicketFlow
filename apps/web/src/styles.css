@@ -585,6 +585,13 @@ button {
 .events-page-intro h1 { font:700 clamp(42px,6vw,72px)/1 'Space Grotesk',sans-serif; letter-spacing:-4px; margin:16px 0 14px }
 .events-page-intro p { color:#64718c; font-size:16px; line-height:1.6; margin:0 auto; max-width:560px }
 .events-search { margin:0 auto 65px; max-width:760px }
+.past-events-section { margin:0 auto; max-width:1280px; padding:0 42px 100px }
+.past-event-list { background:#fff; border:1px solid #d7e1f5; border-radius:16px; box-shadow:var(--shadow); overflow:hidden }
+.past-event-row { align-items:center; display:flex; justify-content:space-between; gap:18px; padding:20px 24px; border-bottom:1px solid #eef1f8 }
+.past-event-row:last-child { border-bottom:0 }
+.past-event-row strong { color:#172443; display:block; font:600 18px 'Space Grotesk',sans-serif }
+.past-event-row span { color:#8290a8; display:block; font-size:13px; margin-top:4px }
+.past-event-row em { background:#eef1f8; border-radius:999px; color:#8290a8; font-size:11px; font-style:normal; font-weight:700; padding:7px 10px; white-space:nowrap }
 
 .hero-visual {
   position:relative;
@@ -817,7 +824,8 @@ button {
 .event-title-link { background:none; border:0; color:#172443; cursor:pointer; display:block; font:600 22px 'Space Grotesk',sans-serif; letter-spacing:-.7px; margin:25px 0 7px; padding:0; text-align:left }
 .event-title-link:hover { color:#4163d8 }
 .event-date-link { background:none; border:0; color:#8290a8; cursor:pointer; font-size:12px; font-weight:700; letter-spacing:1px; padding:0 }
-.event-date-link:hover { color:#4163d8 }
+.event-date-link { background:#fff0ed; border:1px solid #ffd5cc; border-radius:999px; color:#b94c37; padding:7px 10px }
+.event-date-link:hover { background:#ee785f; color:#fff }
 .public-event-card p { color:#64718c; font-size:13px; margin:0 }
 .city-filter-link { background:none; border:0; color:#64718c; cursor:pointer; font:inherit; padding:0; text-decoration:underline; text-decoration-color:#c7d2ee; text-underline-offset:3px }
 .city-filter-link:hover { color:#4163d8; text-decoration-color:#4163d8 }
@@ -860,6 +868,8 @@ button {
   .events-search .search-filters { align-items:stretch; flex-wrap:wrap }
   .events-search .search-filters label { flex:1 1 145px }
   .events-search .search-filters button { flex:1 1 100%; margin-left:0; text-align:left }
+  .past-events-section { padding:0 20px 75px }
+  .past-event-row { align-items:flex-start; flex-direction:column; gap:10px; padding:18px }
   .studio-shell { padding:42px 20px 70px }
   .studio-intro { align-items:flex-start; gap:25px; margin-bottom:40px }
   .studio-intro h1 { font-size:48px; letter-spacing:-3px }
