@@ -308,6 +308,11 @@ export function App() {
     setAuthOpen(true);
   }
 
+  function openEvents() {
+    setEventsOpen(true);
+    window.setTimeout(() => document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' }), 0);
+  }
+
   async function submitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAuthBusy(true);
@@ -333,7 +338,7 @@ export function App() {
 
   function searchEvents(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setEventsOpen(true);
+    openEvents();
     setSubmittedQuery(query.trim());
     setSearchFocused(false);
     void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: 1 });
@@ -341,7 +346,7 @@ export function App() {
   }
 
   function filterByCity(city: string) {
-    setEventsOpen(true);
+    openEvents();
     setQuery('');
     setSubmittedQuery('');
     setCityFilter(city);
@@ -363,7 +368,7 @@ export function App() {
           <span>ticketflow<span className="brand-period">.</span></span>
         </a>
         <nav aria-label="Main navigation">
-          {session?.user.role === 'organizer' ? <a href="#studio">Studio</a> : <><button type="button" className="nav-link" onClick={() => { setEventsOpen(true); window.setTimeout(() => document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' }), 0); }}>Explore events</button><a href="#how-it-works">How it works</a></>}
+          {session?.user.role === 'organizer' ? <a href="#studio">Studio</a> : <><button type="button" className="nav-link" onClick={openEvents}>Explore events</button><a href="#how-it-works">How it works</a></>}
         </nav>
         {session ? (
           <div className="account-menu">
@@ -382,30 +387,32 @@ export function App() {
 
       <main id="top">
         {session?.user.role === 'organizer' ? <OrganizerDashboard session={session} /> : <>
-        <section className="hero" aria-labelledby="hero-title">
+        {!eventsOpen && <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
             <div className="eyebrow"><span className="eyebrow-line" /> A BETTER WAY TO BE THERE</div>
             <h1 id="hero-title">Find your place<br />in the <em>moment.</em></h1>
             <p>Good nights start with a great seat. Discover events, pick your spot, and keep every ticket in one place.</p>
-            <form className="search" onSubmit={searchEvents} role="search">
-              <label htmlFor="event-search">What are you looking for?</label>
-              <div className="search-row">
-                <span className="search-icon" aria-hidden="true">⌕</span>
-                <input id="event-search" value={query} onFocus={() => setSearchFocused(true)} onChange={(event) => { setQuery(event.target.value); setSearchFocused(true); }} placeholder="Search events or cities" />
-                <button type="submit">Search <span aria-hidden="true">→</span></button>
-              </div>
-              <div className="search-filters"><label>City <input value={cityFilter} onChange={(event) => setCityFilter(event.target.value)} placeholder="Any city" /></label><label>Date <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} /></label><button type="button" onClick={() => { setQuery(''); setCityFilter(''); setDateFilter(''); setSubmittedQuery(''); void loadPublicEvents({ page: 1 }); }}>Clear filters</button></div>
-              {searchFocused && <div className="search-suggestions" role="listbox" aria-label="Available events">{suggestedEvents.length ? suggestedEvents.slice(0, 5).map((event) => <button type="button" role="option" key={event.id} onMouseDown={(clickEvent) => clickEvent.preventDefault()} onClick={() => { setEventsOpen(true); setQuery(event.name); setSubmittedQuery(event.name); setSearchFocused(false); window.setTimeout(() => document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' }), 0); }}><span className="suggestion-icon">↗</span><span><strong>{event.name}</strong><small>{event.venue.city} · {new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></span></button>) : <p className="no-suggestions">No published events match yet.</p>}</div>}
-            </form>
+            <button type="button" className="hero-cta" onClick={openEvents}>Explore events <span aria-hidden="true">→</span></button>
           </div>
           <div className="hero-visual">
             <div className="orbit orbit-one" /><div className="orbit orbit-two" />
             <SeatPreview />
             <div className="visual-caption">A PLACE FOR EVERYONE <span>↗</span></div>
           </div>
-        </section>
+        </section>}
 
         {eventsOpen && <section className="events-section" id="events" aria-labelledby="events-title">
+          <div className="events-page-intro"><span className="section-kicker">FIND YOUR MOMENT</span><h1>Explore what’s on.</h1><p>Search the calendar, compare seats, and open an event to see its live availability.</p></div>
+          <form className="search events-search" onSubmit={searchEvents} role="search">
+            <label htmlFor="event-search">What are you looking for?</label>
+            <div className="search-row">
+              <span className="search-icon" aria-hidden="true">⌕</span>
+              <input id="event-search" value={query} onFocus={() => setSearchFocused(true)} onChange={(event) => { setQuery(event.target.value); setSearchFocused(true); }} placeholder="Search events or cities" />
+              <button type="submit">Search <span aria-hidden="true">→</span></button>
+            </div>
+            <div className="search-filters"><label>City <input value={cityFilter} onChange={(event) => setCityFilter(event.target.value)} placeholder="Any city" /></label><label>Date <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} /></label><button type="button" onClick={() => { setQuery(''); setCityFilter(''); setDateFilter(''); setSubmittedQuery(''); void loadPublicEvents({ page: 1 }); }}>Clear filters</button></div>
+            {searchFocused && <div className="search-suggestions" role="listbox" aria-label="Available events">{suggestedEvents.length ? suggestedEvents.slice(0, 5).map((event) => <button type="button" role="option" key={event.id} onMouseDown={(clickEvent) => clickEvent.preventDefault()} onClick={() => { setQuery(event.name); setSubmittedQuery(event.name); setSearchFocused(false); }}>{event.name}<small>{event.venue.city} · {new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></button>) : <p className="no-suggestions">No published events match yet.</p>}</div>}
+          </form>
           <div className="section-heading"><div><span className="section-kicker">DISCOVER</span><h2 id="events-title">Upcoming events</h2></div><span className="section-line" /></div>
           {eventsLoading ? <div className="empty-events"><div className="empty-symbol" aria-hidden="true">↗</div><div><h3>Finding the next good night.</h3><p>Loading published events.</p></div></div> : visibleEvents.length ? <><div className="public-event-grid">{visibleEvents.map((event) => <article className="public-event-card" key={event.id} role="button" tabIndex={0} aria-label={`View details for ${event.name}`} onClick={() => setSelectedEvent(event)} onKeyDown={(keyboardEvent) => { if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') { keyboardEvent.preventDefault(); setSelectedEvent(event); } }}><div className="public-event-top"><span className="event-status published">UPCOMING</span><button type="button" className="event-date-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>{new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}</button></div><button type="button" className="event-title-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>{event.name}</button><p>{event.venue.name} · <button type="button" className="city-filter-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); filterByCity(event.venue.city); }}>{event.venue.city}</button></p><div className="public-event-meta"><span>{event.seats.filter((seat) => seat.available).length} seats available</span><span>From {Math.min(...event.categories.map((category) => category.basePriceCents))}</span></div><button type="button" className="event-details-button" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>View details <span aria-hidden="true">→</span></button></article>)}</div>{totalPages > 1 && <div className="pagination"><button disabled={page === 1} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page - 1 })}>← Previous</button><span>Page {page} of {totalPages}</span><button disabled={page === totalPages} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page + 1 })}>Next →</button></div>}</> : <div className="empty-events"><div className="empty-symbol" aria-hidden="true">✳</div><div><h3>{submittedQuery ? `No events found for “${submittedQuery}”` : 'The calendar is getting ready.'}</h3><p>{submittedQuery ? 'Try another event name or city when events are available.' : 'Published events will appear here as soon as organizers add them.'}</p></div></div>}
         </section>}
@@ -422,7 +429,7 @@ export function App() {
       </main>
       <footer className="site-footer"><span>ticketflow<span className="brand-period">.</span></span><span>Made for the moments that matter.</span></footer>
       {authOpen && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAuthOpen(false); }}>
+        <div className="modal-backdrop auth-page-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setAuthOpen(false); }}>
           <section className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
             <button className="modal-close" aria-label="Close account dialog" onClick={() => setAuthOpen(false)}>×</button>
             <span className="section-kicker">YOUR TICKETFLOW</span>
@@ -450,7 +457,7 @@ export function App() {
           </section>
         </div>
       )}
-      {selectedEvent && <BookingModal event={selectedEvent} session={session?.user.role === 'customer' ? session : null} onClose={() => setSelectedEvent(null)} onHeld={() => { void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page }); }} onSignIn={() => openAuth('login')} onBookAnother={() => { setSelectedEvent(null); void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page }); }} />}
+      {selectedEvent && <BookingModal event={selectedEvent} session={session?.user.role === 'customer' ? session : null} onClose={() => setSelectedEvent(null)} onHeld={() => { void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page }); }} onSignIn={() => { setSelectedEvent(null); openAuth('login'); }} onBookAnother={() => { setSelectedEvent(null); void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page }); }} />}
     </div>
   );
 }
