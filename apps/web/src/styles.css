@@ -192,6 +192,8 @@ button {
 .booking-footer { align-items:center; border-top:1px solid #dce4f5; display:flex; justify-content:space-between; margin-top:22px; padding-top:20px }
 .booking-footer>div { display:flex; flex-direction:column; gap:5px; color:#8290a8; font-size:13px }
 .booking-footer strong { color:#172443; font:600 19px 'Space Grotesk',sans-serif }
+.booking-action { align-items:flex-end; gap:6px !important }
+.booking-login-hint { color:#8290a8; font-size:11px; text-align:right }
 .hold-confirmation { align-items:center; background:#edfaf4; border-left:4px solid #27815f; border-radius:8px; color:#27815f; display:flex; gap:14px; margin:30px 0; padding:18px }
 .hold-icon { align-items:center; background:#27815f; border-radius:50%; color:#fff; display:flex; font-weight:700; height:30px; justify-content:center; width:30px }
 .hold-confirmation strong { color:#172443; font:600 18px 'Space Grotesk',sans-serif }
@@ -803,6 +805,8 @@ button {
   .booking-modal h2 { font-size:32px }
   .booking-footer { align-items:stretch; flex-direction:column; gap:16px }
   .booking-footer .primary-button { width:100% }
+  .booking-action { align-items:stretch; }
+  .booking-login-hint { text-align:left }
   .studio-shell { padding:42px 20px 70px }
   .studio-intro { align-items:flex-start; gap:25px; margin-bottom:40px }
   .studio-intro h1 { font-size:48px; letter-spacing:-3px }
