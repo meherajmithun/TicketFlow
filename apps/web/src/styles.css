@@ -788,6 +788,8 @@ button {
 .city-filter-link { background:none; border:0; color:#64718c; cursor:pointer; font:inherit; padding:0; text-decoration:underline; text-decoration-color:#c7d2ee; text-underline-offset:3px }
 .city-filter-link:hover { color:#4163d8; text-decoration-color:#4163d8 }
 .public-event-meta { border-top:1px solid #eef1f8; color:#8290a8; display:flex; font-size:11px; justify-content:space-between; margin-top:22px; padding-top:14px }
+.event-details-button { align-items:center; background:#4163d8; border:0; border-radius:6px; color:#fff; display:flex; font-size:12px; font-weight:700; gap:9px; justify-content:center; margin-top:18px; padding:10px 13px; transition:background .2s,transform .2s; width:100% }
+.event-details-button:hover { background:#172443; transform:translateY(-1px) }
 .pagination { align-items:center; display:flex; gap:20px; justify-content:center; margin-top:28px }
 .pagination button { background:#fff; border:1px solid #dce4f5; border-radius:6px; color:#4163d8; font-size:12px; font-weight:700; padding:9px 13px }
 .pagination button:hover:not(:disabled) { border-color:#4163d8 }.pagination button:disabled { color:#a2acc0; cursor:not-allowed }
