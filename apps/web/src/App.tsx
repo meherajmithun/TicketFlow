@@ -67,7 +67,7 @@ function SeatPreview() {
   );
 }
 
-function BookingModal({ event, session, onClose, onHeld }: { event: BrowseEvent; session: Session | null; onClose: () => void; onHeld: () => void }) {
+function BookingModal({ event, session, onClose, onHeld, onSignIn }: { event: BrowseEvent; session: Session | null; onClose: () => void; onHeld: () => void; onSignIn: () => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [hold, setHold] = useState<{ id: string; expiresAt: string; totalCents: number; status: 'held' | 'pending_payment' | 'confirmed' } | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -83,7 +83,8 @@ function BookingModal({ event, session, onClose, onHeld }: { event: BrowseEvent;
   const seatRows = event.seats.reduce<Record<string, BrowseSeat[]>>((rows, seat) => { (rows[seat.rowLabel] ??= []).push(seat); return rows; }, {});
   const categoryByName = new Map(event.categories.map((category) => [category.name.toLowerCase(), category]));
   async function holdSeats() {
-    if (!session || !selected.length) return;
+    if (!selected.length) return;
+    if (!session) { onSignIn(); return; }
     setBusy(true); setError('');
     try {
       const result = await apiRequest<{ booking: { id: string; expiresAt: string; totalCents: number; status: 'held' } }>('/bookings/holds', session.token, { method: 'POST', body: JSON.stringify({ eventId: event.id, seatIds: selected }) });
@@ -371,7 +372,7 @@ export function App() {
 
         <section className="events-section" id="events" aria-labelledby="events-title">
           <div className="section-heading"><div><span className="section-kicker">DISCOVER</span><h2 id="events-title">Upcoming events</h2></div><span className="section-line" /></div>
-          {eventsLoading ? <div className="empty-events"><div className="empty-symbol" aria-hidden="true">↗</div><div><h3>Finding the next good night.</h3><p>Loading published events.</p></div></div> : visibleEvents.length ? <><div className="public-event-grid">{visibleEvents.map((event) => <article className="public-event-card" key={event.id} role="button" tabIndex={0} onClick={() => { if (session?.user.role === 'customer') setSelectedEvent(event); else openAuth('login'); }} onKeyDown={(keyboardEvent) => { if (keyboardEvent.key === 'Enter') { if (session?.user.role === 'customer') setSelectedEvent(event); else openAuth('login'); } }}><div className="public-event-top"><span className="event-status published">UPCOMING</span><span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}</span></div><h3>{event.name}</h3><p>{event.venue.name} · {event.venue.city}</p><div className="public-event-meta"><span>{event.seats.filter((seat) => seat.available).length} seats available</span><span>From {Math.min(...event.categories.map((category) => category.basePriceCents))}</span></div></article>)}</div>{totalPages > 1 && <div className="pagination"><button disabled={page === 1} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page - 1 })}>← Previous</button><span>Page {page} of {totalPages}</span><button disabled={page === totalPages} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page + 1 })}>Next →</button></div>}</> : <div className="empty-events"><div className="empty-symbol" aria-hidden="true">✳</div><div><h3>{submittedQuery ? `No events found for “${submittedQuery}”` : 'The calendar is getting ready.'}</h3><p>{submittedQuery ? 'Try another event name or city when events are available.' : 'Published events will appear here as soon as organizers add them.'}</p></div></div>}
+          {eventsLoading ? <div className="empty-events"><div className="empty-symbol" aria-hidden="true">↗</div><div><h3>Finding the next good night.</h3><p>Loading published events.</p></div></div> : visibleEvents.length ? <><div className="public-event-grid">{visibleEvents.map((event) => <article className="public-event-card" key={event.id} role="button" tabIndex={0} aria-label={`View details for ${event.name}`} onClick={() => setSelectedEvent(event)} onKeyDown={(keyboardEvent) => { if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') { keyboardEvent.preventDefault(); setSelectedEvent(event); } }}><div className="public-event-top"><span className="event-status published">UPCOMING</span><button type="button" className="event-date-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>{new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}</button></div><button type="button" className="event-title-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>{event.name}</button><p>{event.venue.name} · {event.venue.city}</p><div className="public-event-meta"><span>{event.seats.filter((seat) => seat.available).length} seats available</span><span>From {Math.min(...event.categories.map((category) => category.basePriceCents))}</span></div></article>)}</div>{totalPages > 1 && <div className="pagination"><button disabled={page === 1} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page - 1 })}>← Previous</button><span>Page {page} of {totalPages}</span><button disabled={page === totalPages} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page + 1 })}>Next →</button></div>}</> : <div className="empty-events"><div className="empty-symbol" aria-hidden="true">✳</div><div><h3>{submittedQuery ? `No events found for “${submittedQuery}”` : 'The calendar is getting ready.'}</h3><p>{submittedQuery ? 'Try another event name or city when events are available.' : 'Published events will appear here as soon as organizers add them.'}</p></div></div>}
         </section>
 
         <section className="how-section" id="how-it-works" aria-labelledby="how-title">
@@ -414,7 +415,7 @@ export function App() {
           </section>
         </div>
       )}
-      {selectedEvent && <BookingModal event={selectedEvent} session={session} onClose={() => setSelectedEvent(null)} onHeld={() => { void loadPublicEvents(); }} />}
+      {selectedEvent && <BookingModal event={selectedEvent} session={session?.user.role === 'customer' ? session : null} onClose={() => setSelectedEvent(null)} onHeld={() => { void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page }); }} onSignIn={() => openAuth('login')} />}
     </div>
   );
 }
