@@ -762,6 +762,8 @@ button {
 .event-date-link { background:none; border:0; color:#8290a8; cursor:pointer; font-size:12px; font-weight:700; letter-spacing:1px; padding:0 }
 .event-date-link:hover { color:#4163d8 }
 .public-event-card p { color:#64718c; font-size:13px; margin:0 }
+.city-filter-link { background:none; border:0; color:#64718c; cursor:pointer; font:inherit; padding:0; text-decoration:underline; text-decoration-color:#c7d2ee; text-underline-offset:3px }
+.city-filter-link:hover { color:#4163d8; text-decoration-color:#4163d8 }
 .public-event-meta { border-top:1px solid #eef1f8; color:#8290a8; display:flex; font-size:11px; justify-content:space-between; margin-top:22px; padding-top:14px }
 .pagination { align-items:center; display:flex; gap:20px; justify-content:center; margin-top:28px }
 .pagination button { background:#fff; border:1px solid #dce4f5; border-radius:6px; color:#4163d8; font-size:12px; font-weight:700; padding:9px 13px }
