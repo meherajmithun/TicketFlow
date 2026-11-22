@@ -529,7 +529,7 @@ button {
 .search input::placeholder {
   color:#a2acc0}
 
-.search button {
+.search-row > button {
   background:#4163d8;
   color:white;
   border:0;
@@ -539,10 +539,10 @@ button {
   font-weight:700;
   white-space:nowrap}
 
-.search button:hover {
+.search-row > button:hover {
   background:#294abf}
 
-.search button span {
+.search-row > button span {
   margin-left:9px}
 
 .search-filters { align-items:center; border-top:1px solid #eef1f8; display:flex; gap:14px; margin-top:13px; padding-top:12px }
@@ -839,8 +839,8 @@ button {
 
 /* Shared visual finish: a calm paper-white surface, cobalt actions, and coral moments. */
 .site-header { background:#f7f9ffdd; border-bottom:1px solid #e8edf8; position:relative; z-index:5 }
-.primary-button,.auth-submit,.event-details-button,.hero-cta,.search button { background:linear-gradient(135deg,#4a6be0,#3859ca); box-shadow:0 9px 18px #4163d826; transition:background .2s,box-shadow .2s,transform .2s }
-.primary-button:hover,.auth-submit:hover,.event-details-button:hover,.hero-cta:hover,.search button:hover { background:linear-gradient(135deg,#3859ca,#243fa8); box-shadow:0 12px 24px #294abf33; transform:translateY(-1px) }
+.primary-button,.auth-submit,.event-details-button,.hero-cta,.search-row > button { background:linear-gradient(135deg,#4a6be0,#3859ca); box-shadow:0 9px 18px #4163d826; transition:background .2s,box-shadow .2s,transform .2s }
+.primary-button:hover,.auth-submit:hover,.event-details-button:hover,.hero-cta:hover,.search-row > button:hover { background:linear-gradient(135deg,#3859ca,#243fa8); box-shadow:0 12px 24px #294abf33; transform:translateY(-1px) }
 .search-suggestions button { background:#fff; box-shadow:none; transform:none }
 .search-suggestions button:hover { background:#f7f9ff; box-shadow:none; transform:none }
 .public-event-card,.event-card,.event-empty,.setup-step,.auth-modal,.booking-modal { box-shadow:var(--shadow) }
