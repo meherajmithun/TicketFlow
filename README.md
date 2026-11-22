@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/meherajmithun/TicketFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/meherajmithun/TicketFlow/actions/workflows/ci.yml)
 
-TicketFlow is an event ticket booking project for CPS Academy InterviewQuest-3. The API has PostgreSQL-backed account registration and login, signed bearer tokens, reusable role checks, and organizer-owned venue/event management. The web app includes the account experience, discovery shell, and organizer studio; seat reservation, payments, notifications, and deployment remain to be built.
+TicketFlow is an event ticket booking project for CPS Academy InterviewQuest-3. The API and web app cover authentication, organizer event setup, public browsing, seat holds, booking lifecycle, mock payments, cancellation/refunds, and notifications. CI verifies the PostgreSQL concurrency path; production deployment remains before submission.
 
 ## Requirements
 
@@ -55,13 +55,12 @@ Organizer routes require an organizer bearer token. An organizer can only list a
 | `GET /bookings` | List the authenticated customer's bookings and holds |
 | `POST /bookings/:bookingId/cancel` | Cancel an owned held/confirmed booking and calculate its refund |
 | `POST /bookings/:bookingId/payment` | Move an owned held booking to pending payment |
-| `POST /bookings/:bookingId/confirm` | Confirm an owned pending-payment booking through the mock payment step |
 | `GET /bookings/:bookingId/history` | Read the owned booking's status history |
 | `POST /bookings/:bookingId/pay` | Charge a pending booking through `stripe` or `paypal` using an idempotency key |
 | `GET /notifications` | List the authenticated customer's in-app notifications |
 | `POST /notifications/:notificationId/read` | Mark an in-app notification as read |
 
-Tokens expire after 12 hours. Passwords are stored as salted scrypt hashes. The role guard is ready for organizer and customer routes, but no event or booking routes exist yet.
+Tokens expire after 12 hours. Passwords are stored as salted scrypt hashes. Organizer and customer routes use role guards, and organizer event operations enforce ownership. A booking reaches `confirmed` only after a successful mock payment provider call; there is no direct confirmation endpoint.
 
 ## Checks
 
@@ -72,7 +71,7 @@ npm run build
 npm run test:coverage
 ```
 
-CI runs these checks on every push and pull request and uploads the coverage report.
+CI runs these checks on every push and pull request, starts PostgreSQL for migrations and the same-seat concurrency test, and uploads the coverage report.
 
 ## Repository layout
 

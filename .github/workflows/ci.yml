@@ -7,6 +7,24 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ticketflow
+          POSTGRES_PASSWORD: ticketflow
+          POSTGRES_DB: ticketflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ticketflow -d ticketflow"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://ticketflow:ticketflow@localhost:5432/ticketflow
+      AUTH_TOKEN_SECRET: ci-only-secret-that-is-longer-than-thirty-two-characters
+      RUN_POSTGRES_TESTS: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,6 +32,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run db:migrate
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build

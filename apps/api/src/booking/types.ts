@@ -10,5 +10,5 @@ export type HeldBooking = {
 
 export type CustomerBooking = HeldBooking & { eventName: string; startsAt: string };
 export type Cancellation = { bookingId: string; status: 'cancelled'; refundCents: number; cancelledAt: string };
-export type BookingTransition = { bookingId: string; status: 'pending_payment' | 'confirmed' };
+export type BookingTransition = { bookingId: string; status: 'pending_payment' };
 export type StatusHistoryEntry = { fromStatus: string | null; toStatus: string; changedAt: string };

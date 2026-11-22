@@ -6,13 +6,13 @@ AI output is being checked with linting, TypeScript compilation, unit tests, and
 
 For the authentication foundation, Codex drafted the PostgreSQL user repository, migration runner, password hashing, signed token handling, validation, routes, role guard, and tests. The owner should review the authentication and database choices before submitting and be able to explain the request path from HTTP through the service to PostgreSQL. The HTTP test could not bind a loopback port in the restricted sandbox, so Codex reran the coverage command with permission outside the sandbox; all eight tests passed. No PostgreSQL integration test was run because a local server is not installed.
 
-For event management, Codex added organizer-protected venue and event routes, Zod validation for future event date-times and row/category seat maps, a PostgreSQL event repository with transactional event/category/seat creation, public published-event browsing, ownership filtering, and in-memory API tests. The owner should review the transaction and ownership checks before submission. PostgreSQL integration tests still need to be run against the local database.
+For event management, Codex added organizer-protected venue and event routes, Zod validation for future event date-times and row/category seat maps, a PostgreSQL event repository with transactional event/category/seat creation, public published-event browsing, ownership filtering, and in-memory API tests. The owner should review the transaction and ownership checks before submission. CI now starts PostgreSQL and runs the live integration path.
 
 Codex then added the organizer studio to the web app. It loads the organizer's own venues and events, creates venues, creates draft or published events, builds row-by-seat maps with category prices, and keeps organizer API authorization in place. The owner should review the browser-to-API request payloads before submission.
 
 Codex added published-event suggestions and public event cards to the customer homepage, plus an organizer publish action for existing drafts. The owner should verify that only future published events appear to customers.
 
-Codex added public event filtering/pagination, customer seat selection, and five-minute holds. The hold transaction sorts requested seat IDs, locks the matching PostgreSQL rows, rejects active claims, writes the booking and seat prices, and commits the claim together. The owner should review the transaction and test the same-seat race against PostgreSQL before submission; the current automated suite does not run a live PostgreSQL integration test.
+Codex added public event filtering/pagination, customer seat selection, and five-minute holds. The hold transaction sorts requested seat IDs, locks the matching PostgreSQL rows, rejects active claims, writes the booking and seat prices, and commits the claim together. CI now runs a two-customer same-seat race against PostgreSQL.
 
 Codex connected the event-level base/early-bird strategy to hold pricing and exposed the strategy selector in the organizer studio. The selected effective price is calculated when the hold is created and persisted in `booking_seats`.
 
@@ -23,5 +23,7 @@ Codex completed the booking lifecycle endpoints and mock customer controls for p
 Codex added mock Stripe and PayPal providers behind the `PaymentProvider` interface. Payment attempts use the database's unique booking/idempotency-key constraint, and retries return the existing attempt without charging again; a successful attempt transitions the booking to confirmed.
 
 Codex added confirmation and cancellation notifications through a `NotificationChannel` interface, with an in-app PostgreSQL channel and console email adapter. Notification creation is deduplicated by user, booking, and type so payment retries do not send duplicate confirmations. The owner should review the channel registration and notification read flow.
+
+During the mandatory-requirements audit, Codex removed the direct booking-confirmation endpoint. Customers must now use the pending-payment route followed by a successful mock Stripe or PayPal payment; RBAC and organizer ownership checks were re-verified across the route groups.
 
 One setup mistake was found during review: npm workspaces run API commands from `apps/api`, but the first auth implementation used the default dotenv path and therefore missed the repository-root `.env` file. Codex fixed the config to resolve the root file from the module location and verified the API workspace reads it. This is a concrete mistake and correction the owner can discuss in the video walkthrough.
