@@ -11,19 +11,19 @@ flowchart LR
   AuthService --> UserRepo[User repository interface]
   UserRepo --> PgUsers[PostgreSQL user repository]
   PgUsers --> DB[(PostgreSQL)]
-  API -. future booking routes .-> BookingService[Booking service]
-  BookingService -. future .-> Domain[Booking, hold, pricing, refund rules]
+  API --> BookingService[Booking service]
+  BookingService --> Domain[Booking, hold, pricing, refund rules]
 ```
 
-The API exposes `/health`, account registration/login/profile routes, organizer venue/event routes, and public published-event browsing. `server.ts` wires the PostgreSQL pool, user repository, event repository, and services. `db:migrate` applies SQL files once and records them in `schema_migrations`. The browser includes the account experience, discovery shell, and organizer studio. The booking domain rules remain pure functions awaiting application services.
+The API exposes `/health`, account registration/login/profile routes, organizer venue/event routes, public published-event browsing, customer booking/payment routes, and notifications. `server.ts` wires the PostgreSQL pool, repositories, and services. `db:migrate` applies SQL files once and records them in `schema_migrations`. The browser includes the account experience, discovery shell, seat picker, booking flow, and organizer studio.
 
 ## Layers to complete
 
-1. **HTTP**: auth routes, Zod input validation, bearer authentication, role checks, and consistent errors are present. Venue/event creation and browse routes are present; booking routes remain.
-2. **Application**: auth and event services are present. Event creation validates organizer-owned venues and generates seat maps transactionally; booking workflows remain.
+1. **HTTP**: auth routes, Zod input validation, bearer authentication, role checks, and consistent errors are present. Venue/event, booking, payment, browse, and notification routes are present.
+2. **Application**: auth, event, booking, payment, and notification services are present. Event creation validates organizer-owned venues and generates seat maps transactionally.
 3. **Domain**: booking status transitions, hold expiry, pricing, and refund policy.
-4. **Persistence**: user repository and migration runner are present. Event and booking repositories remain.
-5. **Integrations**: mock payment providers and notification channels.
+4. **Persistence**: user, event, booking, payment, notification repositories, and migration runner are present.
+5. **Integrations**: mock Stripe and PayPal providers share one payment interface; in-app and console email notification channels share a notification interface.
 
 ## Design choices already in code
 
@@ -33,10 +33,10 @@ The API exposes `/health`, account registration/login/profile routes, organizer 
 - **Repository interface**: `AuthService` depends on `UserRepository`, and `EventService` depends on `EventRepository`; PostgreSQL is an adapter. Tests use in-memory implementations.
 - **Authentication boundary**: the role guard verifies an HMAC-signed, 12-hour bearer token. Passwords use salted scrypt hashes. Event routes must combine role checks with organizer ownership checks against the database.
 
-Payment providers and notification channels will use interfaces when those features are implemented. They are not represented as completed patterns yet.
+Payment providers and notification channels use interfaces so additional providers or channels can be added without changing booking code.
 
 ## Seat concurrency plan
 
-`event_seats.current_booking_id` represents the current claim. To hold a seat, create a booking and conditionally update the requested seat rows in **one PostgreSQL transaction**, in a stable seat ID order. The update must match only unclaimed seats or expired holds. Check that every requested row was updated before committing; otherwise roll back the whole transaction. PostgreSQL row locking serializes competing updates to the same seat. A payment confirmation must verify that the same booking still owns an unexpired claim before setting `confirmed_at` and the booking status. Expired holds are released by a scheduled cleanup job and may also be replaced atomically by a new hold. This protocol is a design plan and is not implemented yet.
+`event_seats.current_booking_id` represents the current claim. To hold a seat, create a booking and conditionally update the requested seat rows in **one PostgreSQL transaction**, in a stable seat ID order. The update must match only unclaimed seats or expired holds. Check that every requested row was updated before committing; otherwise roll back the whole transaction. PostgreSQL row locking serializes competing updates to the same seat. Payment confirmation is performed only after a successful provider call, and the payment transaction verifies the booking claim before setting `confirmed_at`. Expired holds are released by the scheduled cleanup job and may also be replaced atomically by a new hold. The CI suite runs a two-customer same-seat race against PostgreSQL.
 
 The booking service will validate organizer ownership for event changes, persist every status change in `booking_status_history`, and use `payment_attempts`' unique `(booking_id, idempotency_key)` constraint to make retries safe.

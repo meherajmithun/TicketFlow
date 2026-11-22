@@ -4,15 +4,15 @@ The project PDF requires a live event booking system, not only a UI or schema. I
 
 | Requirement | Current state | Next implementation |
 | --- | --- | --- |
-| Authentication and roles | API registration, login, bearer authentication, role guard | Add UI forms and demo accounts |
-| Event management | Organizer-owned venue/event APIs plus organizer dashboard for venue, date-time, seat-map, category, and price setup | Add event editing/cancellation workflows |
-| Browse and search | Database-backed public event cards, suggestions, and name/city/date filters with pagination | Add richer filter controls and event detail navigation |
-| Seat holds and no double booking | Customer seat picker and five-minute transactional holds with PostgreSQL row locks | Add explicit expiry cleanup job and two-user PostgreSQL race test |
-| Booking lifecycle | Held → pending payment → confirmed/expired/cancelled transitions, history, expiry cleanup, and customer controls | Connect real payment attempts and notifications |
-| Payments | Mock Stripe and PayPal providers share one interface; payment attempts are idempotent and successful payment confirms the booking | Add provider failure simulations and production adapter |
-| Pricing | Organizer selects base or early-bird per event; selected strategy is applied during a hold and persisted per seat | Add pricing display refinement during checkout |
-| Notifications | Confirmation/cancellation fan-out to in-app storage and console email adapters behind a channel interface | Add richer email templates and additional channels |
-| Cancellation and refund | Customer cancellation releases claims transactionally and applies the full-refund-more-than-24-hours rule | Connect a real payment/refund provider after payment confirmation |
-| Delivery | CI exists | Host database, API, and web app; add CD on merge to `main` |
+| Authentication and roles | Complete: API, UI forms, bearer tokens, role guards, and ownership checks | Add seeded demo accounts |
+| Event management | Complete: organizer-owned venues, dynamic rows/categories/prices, future date validation, publish/cancel | Add editing workflows if required by the final submission |
+| Browse and search | Complete: public cards, details, suggestions, name/city/date filters, pagination | None required for the core row |
+| Seat holds and no double booking | Complete: five-minute transactional holds, row locks, automatic cleanup, and CI PostgreSQL race test | Run the CI integration test before submission |
+| Booking lifecycle | Complete: held → pending payment → confirmed/expired/cancelled, history, expiry cleanup, and customer controls | None required for the core row |
+| Payments | Complete: mock Stripe and PayPal share one interface, idempotency keys, and successful payment confirms booking | Add provider failure simulations if desired |
+| Pricing | Complete: base and early-bird strategies are selected per event and applied during holds | None required for the core row |
+| Notifications | Complete: confirmation/cancellation fan-out to in-app storage and console email adapter | Add richer email templates if desired |
+| Cancellation and refund | Complete: transactional release and full-refund-more-than-24-hours rule | Connect a real refund provider only for production |
+| Delivery | CI complete, deployment pending | Host database, API, and web app; add CD on merge to `main` |
 
-Build each row on a focused branch with a pull request. The next feature after this auth foundation should be event management and browsing because seat booking needs published events and generated seats. Then implement transactional holds before payment or UI checkout. Verify the two-user same-seat race against PostgreSQL before submission. Keep bonus features until all mandatory rows are complete.
+Keep each meaningful change on a focused branch with a pull request. Before submission, run the full CI workflow with PostgreSQL enabled, verify RBAC and the customer booking flow manually, then complete deployment, demo accounts, and the video walkthrough.
