@@ -226,6 +226,30 @@ button {
 .picker-seat.booked:hover { background:#ffe0dc; color:#b33f32; }
 .edit-button { background:#edf2ff; border:1px solid #ccd9ff; border-radius:8px; color:#3158c9; cursor:pointer; font-size:11px; font-weight:800; padding:7px 10px; text-transform:uppercase; letter-spacing:.08em }
 .edit-button:hover { background:#dce6ff; }
+.studio-nav { display:flex; gap:10px; margin:30px 0 24px; padding:8px; background:rgba(224,232,255,.72); border:1px solid #d3defb; border-radius:16px; flex-wrap:wrap }
+.studio-nav button { background:transparent; border:0; border-radius:10px; color:#65779b; cursor:pointer; font-weight:800; padding:12px 16px }
+.studio-nav button.active { background:#fff; box-shadow:0 8px 20px rgba(46,73,150,.12); color:#244bc1 }
+.studio-nav button span { color:#4163d8; margin-left:5px }
+.workspace-panel { background:linear-gradient(135deg,#fff 0%,#f2f6ff 100%); border:1px solid #d3defb; border-radius:22px; box-shadow:0 18px 50px rgba(54,79,145,.08); margin-bottom:28px; padding:30px }
+.workspace-panel-heading { align-items:center; display:flex; gap:22px; margin-bottom:24px }
+.workspace-panel-heading h2 { color:#172752; font-size:42px; letter-spacing:-.05em; margin:6px 0 0 }
+.workspace-panel-heading .studio-rule { flex:1 }
+.studio-grid-hidden { display:none }
+.venue-management { display:grid; gap:24px; grid-template-columns:minmax(0,1fr) 280px }
+.venue-management-list,.managed-event-list { display:grid; gap:12px }
+.managed-venue,.managed-event { align-items:center; background:#fff; border:1px solid #dbe4fa; border-radius:14px; display:flex; gap:20px; justify-content:space-between; padding:18px 20px }
+.managed-venue strong,.managed-event h3 { color:#1c2b54; display:block; font-size:16px; margin:0 0 6px }
+.managed-venue span,.managed-event p { color:#7d8eaf; display:block; font-size:13px; margin:0 }
+.managed-venue div:last-child { display:flex; gap:8px }
+.danger-button { background:#fff0ed; border:1px solid #ffd0c7; border-radius:8px; color:#c8493b; cursor:pointer; font-size:11px; font-weight:800; padding:7px 10px; text-transform:uppercase }
+.venue-management-form { background:#f5f7ff; border:1px solid #dce5fa; border-radius:14px; padding:18px }
+.managed-event { justify-content:flex-start }
+.managed-event .event-date { flex:0 0 62px }
+.managed-event > div:nth-child(2) { flex:1 }
+.managed-event-stats { align-items:flex-end; display:flex; flex-direction:column; gap:5px }
+.managed-event-stats strong { color:#244bc1; font-size:24px }
+.managed-event-stats span { color:#8291ad; font-size:10px; font-weight:800; letter-spacing:.08em }
+@media (max-width: 760px) { .venue-management { grid-template-columns:1fr } .managed-event { align-items:flex-start; flex-wrap:wrap } .managed-event-stats { margin-left:82px; align-items:flex-start } .workspace-panel-heading h2 { font-size:32px } }
 .booking-footer { align-items:center; border-top:1px solid #dce4f5; display:flex; justify-content:space-between; margin-top:22px; padding-top:20px }
 .booking-footer>div { display:flex; flex-direction:column; gap:5px; color:#8290a8; font-size:13px }
 .booking-footer strong { color:#172443; font:600 19px 'Space Grotesk',sans-serif }

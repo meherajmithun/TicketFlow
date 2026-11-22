@@ -557,6 +557,8 @@ function OrganizerDashboard({ session }: { session: Session }) {
   ]);
   const [seatsPerRow, setSeatsPerRow] = useState("12");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [activePanel, setActivePanel] = useState<"create" | "venues" | "running" | "delivered">("create");
+  const [editingVenueId, setEditingVenueId] = useState<string | null>(null);
 
   async function loadDashboard() {
     try {
@@ -595,11 +597,12 @@ function OrganizerDashboard({ session }: { session: Session }) {
     setError("");
     setMessage("");
     try {
-      await apiRequest<{ venue: Venue }>("/venues", session.token, {
-        method: "POST",
+      await apiRequest<{ venue: Venue }>(editingVenueId ? `/venues/${editingVenueId}` : "/venues", session.token, {
+        method: editingVenueId ? "PATCH" : "POST",
         body: JSON.stringify(venueForm),
       });
       setVenueForm({ name: "", city: "", address: "" });
+      setEditingVenueId(null);
       setMessage("Venue saved.");
       await loadDashboard();
     } catch (requestError) {
@@ -612,6 +615,9 @@ function OrganizerDashboard({ session }: { session: Session }) {
       setBusy(false);
     }
   }
+
+  function editVenue(venue: Venue) { setEditingVenueId(venue.id); setVenueForm({ name: venue.name, city: venue.city, address: venue.address }); setActivePanel("venues"); }
+  async function deleteVenue(venue: Venue) { if (!window.confirm(`Delete ${venue.name}?`)) return; setBusy(true); setError(""); try { await apiRequest(`/venues/${venue.id}`, session.token, { method: "DELETE" }); setMessage("Venue deleted."); await loadDashboard(); } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Could not delete venue"); } finally { setBusy(false); } }
 
   async function createEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -778,7 +784,17 @@ function OrganizerDashboard({ session }: { session: Session }) {
           <i>↗</i>
         </div>
       </div>
-      <div className="studio-grid">
+      <nav className="studio-nav" aria-label="Organizer workspace">
+        <button className={activePanel === "create" ? "active" : ""} onClick={() => setActivePanel("create")}>Create event</button>
+        <button className={activePanel === "venues" ? "active" : ""} onClick={() => setActivePanel("venues")}>Venues <span>{venues.length}</span></button>
+        <button className={activePanel === "running" ? "active" : ""} onClick={() => setActivePanel("running")}>Running events <span>{events.filter((event) => event.status === "published" && new Date(event.startsAt) > new Date()).length}</span></button>
+        <button className={activePanel === "delivered" ? "active" : ""} onClick={() => setActivePanel("delivered")}>Delivered events <span>{events.filter((event) => new Date(event.startsAt) <= new Date()).length}</span></button>
+      </nav>
+      {activePanel !== "create" && <section className="workspace-panel">
+        <div className="workspace-panel-heading"><div><span className="section-kicker">{activePanel === "venues" ? "YOUR PLACES" : activePanel === "running" ? "LIVE PROGRAMME" : "DELIVERED PROGRAMME"}</span><h2>{activePanel === "venues" ? "Venues" : activePanel === "running" ? "Running events" : "Delivered events"}</h2></div><span className="studio-rule" /></div>
+        {activePanel === "venues" ? <div className="venue-management"><div className="venue-management-list">{venues.map((venue) => <article className="managed-venue" key={venue.id}><div><strong>{venue.name}</strong><span>{venue.city} · {venue.address}</span></div><div><button className="edit-button" onClick={() => editVenue(venue)}>Edit</button><button className="danger-button" disabled={busy} onClick={() => void deleteVenue(venue)}>Delete</button></div></article>)}</div><form className="venue-form venue-management-form" onSubmit={createVenue}><span className="form-label">{editingVenueId ? "EDIT VENUE" : "ADD A VENUE"}</span><input required placeholder="Venue name" value={venueForm.name} onChange={(event) => setVenueForm({ ...venueForm, name: event.target.value })} /><input required placeholder="City" value={venueForm.city} onChange={(event) => setVenueForm({ ...venueForm, city: event.target.value })} /><input required placeholder="Address" value={venueForm.address} onChange={(event) => setVenueForm({ ...venueForm, address: event.target.value })} /><button className="outline-button" disabled={busy}>{editingVenueId ? "Save changes" : "Add venue"} <span>+</span></button></form></div> : <div className="managed-event-list">{events.filter((event) => activePanel === "running" ? event.status === "published" && new Date(event.startsAt) > new Date() : new Date(event.startsAt) <= new Date()).map((event) => <article className="managed-event" key={event.id}><div className="event-date"><strong>{new Date(event.startsAt).toLocaleDateString(undefined, { day: "2-digit" })}</strong><span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: "short" }).toUpperCase()}</span></div><div><span className={`event-status ${new Date(event.startsAt) <= new Date() ? "past" : event.status}`}>{new Date(event.startsAt) <= new Date() ? "delivered" : event.status}</span><h3>{event.name}</h3><p>{event.venue.name} · {event.venue.city}</p></div><div className="managed-event-stats"><strong>{event.seats.filter((seat) => seat.available).length}</strong><span>AVAILABLE / {event.seats.length}</span><button className="edit-button" onClick={() => { editEvent(event); setActivePanel("create"); }}>Manage event</button></div></article>)}</div>}
+      </section>}
+      <div className={`studio-grid ${activePanel !== "create" ? "studio-grid-hidden" : ""}`}>
         <aside className="studio-sidebar">
           <div className="sidebar-label">
             YOUR VENUES <span>{venues.length.toString().padStart(2, "0")}</span>

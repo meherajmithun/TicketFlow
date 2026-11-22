@@ -43,6 +43,7 @@ export type EventSearch = { query?: string; city?: string; date?: string; past?:
 export type EventPage = { events: Event[]; total: number; page: number; pageSize: number; totalPages: number };
 
 export type CreateVenueInput = Omit<Venue, 'id' | 'organizerId'>;
+export type UpdateVenueInput = CreateVenueInput & { venueId: string; organizerId: string };
 export type CreateEventInput = {
   organizerId: string;
   venueId: string;

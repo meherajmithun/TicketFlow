@@ -32,6 +32,8 @@ class MemoryEvents implements EventRepository {
     return venue;
   }
   async listVenues(owner: string) { return [...this.venues.values()].filter((venue) => venue.organizerId === owner); }
+  async updateVenue(input: CreateVenueInput & { venueId: string; organizerId: string }) { const venue = this.venues.get(input.venueId); if (!venue || venue.organizerId !== input.organizerId) return null; const updated = { ...venue, name: input.name, city: input.city, address: input.address }; this.venues.set(venue.id, updated); return updated; }
+  async deleteVenue(owner: string, id: string) { const venue = this.venues.get(id); if (!venue || venue.organizerId !== owner) return false; this.venues.delete(id); return true; }
   async createEvent(input: CreateEventInput) {
     const venue = this.venues.get(input.venueId);
     if (!venue || venue.organizerId !== input.organizerId) throw new Error('VENUE_NOT_FOUND_OR_NOT_OWNED');

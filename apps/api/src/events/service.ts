@@ -1,9 +1,9 @@
-import type { CreateEventInput, CreateVenueInput, EventRepository, UpdateEventInput } from './repository.js';
+import type { CreateEventInput, CreateVenueInput, EventRepository, UpdateEventInput, UpdateVenueInput } from './repository.js';
 import type { EventSearch } from './types.js';
 
 export class EventError extends Error {
-  constructor(public readonly code: 'VENUE_NOT_FOUND' | 'EVENT_NOT_FOUND' | 'NOT_OWNER' | 'EVENT_HAS_BOOKINGS') {
-    super(code === 'EVENT_NOT_FOUND' ? 'Event not found' : code === 'EVENT_HAS_BOOKINGS' ? 'This event cannot change its seat layout after bookings exist' : code === 'VENUE_NOT_FOUND' ? 'Venue not found or not owned by this organizer' : 'You do not own this event');
+  constructor(public readonly code: 'VENUE_NOT_FOUND' | 'VENUE_IN_USE' | 'EVENT_NOT_FOUND' | 'NOT_OWNER' | 'EVENT_HAS_BOOKINGS') {
+    super(code === 'EVENT_NOT_FOUND' ? 'Event not found' : code === 'EVENT_HAS_BOOKINGS' ? 'This event cannot change its seat layout after bookings exist' : code === 'VENUE_IN_USE' ? 'This venue is used by an event and cannot be deleted' : code === 'VENUE_NOT_FOUND' ? 'Venue not found or not owned by this organizer' : 'You do not own this event');
   }
 }
 
@@ -17,6 +17,9 @@ export class EventService {
   listVenues(organizerId: string) {
     return this.events.listVenues(organizerId);
   }
+
+  async updateVenue(input: UpdateVenueInput) { const venue = await this.events.updateVenue(input); if (!venue) throw new EventError('VENUE_NOT_FOUND'); return venue; }
+  async deleteVenue(organizerId: string, venueId: string) { if (!(await this.events.deleteVenue(organizerId, venueId))) throw new EventError('VENUE_IN_USE'); }
 
   async createEvent(input: CreateEventInput) {
     try {
