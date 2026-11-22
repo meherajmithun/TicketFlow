@@ -190,7 +190,7 @@ button {
 .booking-modal h2 { font:700 40px/1.05 'Space Grotesk',sans-serif; letter-spacing:-2px; margin:15px 0 8px }
 .booking-meta { color:#64718c; font-size:14px; margin:0 0 26px }
 .booking-stage { background:#e8eeff; border:2px solid #8aa2ef; border-bottom:0; border-radius:50% 50% 0 0/100% 100% 0 0; color:#4163d8; font-size:11px; font-weight:700; letter-spacing:2px; margin:0 auto 25px; max-width:370px; padding:13px; text-align:center }
-.category-legend { background:#f7f9ff; border:1px solid #e3e9f8; border-radius:10px; margin:0 0 12px; padding:13px 15px }
+.category-legend { background:linear-gradient(135deg,#f8faff,#eef3ff); border:1px solid #dbe5fb; border-radius:12px; margin:0 0 12px; padding:13px 15px }
 .category-legend-heading { align-items:center; color:#8290a8; display:flex; font-size:11px; justify-content:space-between; letter-spacing:.4px }
 .category-legend-list { display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:10px }
 .category-legend-item { align-items:center; color:#64718c; display:flex; font-size:12px; gap:6px }
@@ -201,8 +201,8 @@ button {
 .seat-status-legend span { align-items:center; display:inline-flex; gap:6px }
 .seat-status-dot { background:#dbe4fb; border-radius:50%; display:inline-block; height:8px; width:8px }
 .seat-status-dot.selected { background:#ee785f }
-.seat-status-dot.unavailable { background:#aab4c9 }
-.seat-picker { background:#f7f9ff; border-radius:12px; display:grid; gap:10px; padding:20px 15px }
+.seat-status-dot.unavailable { background:#e45d49 }
+.seat-picker { background:linear-gradient(135deg,#f8faff,#eef3ff); border-radius:12px; display:grid; gap:10px; padding:20px 15px }
 .seat-row { align-items:center; display:grid; gap:12px; grid-template-columns:110px 1fr }
 .seat-row-label { display:grid; gap:2px; min-width:0 }
 .seat-row-label strong { color:#172443; font-size:13px }
@@ -211,8 +211,8 @@ button {
 .seat-row>div:last-child { display:flex; flex-wrap:wrap; gap:8px }
 .picker-seat { background:#dbe4fb; border:0; border-radius:5px 5px 8px 8px; color:#4163d8; cursor:pointer; font-size:10px; font-weight:700; height:32px; width:32px }
 .picker-seat:hover,.picker-seat.chosen { background:#ee785f; color:#fff; transform:translateY(-2px) }
-.picker-seat.unavailable { background:#d7dce8; color:#8f9aae; cursor:not-allowed; opacity:.9; position:relative }
-.picker-seat.unavailable::before { border-top:2px solid #aab4c9; content:''; left:5px; position:absolute; right:5px; top:50%; transform:rotate(-35deg) }
+.picker-seat.unavailable { background:linear-gradient(135deg,#ffd8d0,#f3a090); border:1px solid #e45d49; color:#a83f31; cursor:not-allowed; opacity:1; position:relative }
+.picker-seat.unavailable::before { border-top:2px solid #b94c37; content:''; left:5px; position:absolute; right:5px; top:50%; transform:rotate(-35deg) }
 .picker-seat small { font-size:12px; font-weight:800; line-height:1; position:absolute; right:5px; top:3px }
 .booking-footer { align-items:center; border-top:1px solid #dce4f5; display:flex; justify-content:space-between; margin-top:22px; padding-top:20px }
 .booking-footer>div { display:flex; flex-direction:column; gap:5px; color:#8290a8; font-size:13px }
@@ -372,8 +372,8 @@ button {
 .form-field label span { color:#a2acc0; font-weight:400; margin-left:4px }
 .form-field textarea { min-height:100px; resize:vertical }
 .studio-notice { background:#fff6e9; border-left:4px solid #ee785f; color:#8c6332; font-size:15px; margin-bottom:22px; padding:16px 18px }
-.map-builder,.category-builder { background:#e8eeff; border-radius:12px; padding:20px }
-.category-builder { background:#f0f3fb }
+.map-builder,.category-builder { background:linear-gradient(135deg,#e8eeff,#f4f6ff); border:1px solid #dbe5fb; border-radius:14px; padding:20px }
+.category-builder { background:linear-gradient(135deg,#f3f6ff,#fff) }
 .setup-step { border:1px solid #dbe4fb; box-shadow:0 8px 24px #263c8008; padding:24px 22px }
 .setup-step-heading { align-items:flex-start; display:flex; gap:12px; margin-bottom:22px }
 .setup-step-heading>div:nth-child(2) { flex:1 }
@@ -412,7 +412,7 @@ button {
 .category-chip { background:#fff; border:1px solid #dce4f5; border-radius:7px; display:flex; flex-direction:column; gap:3px; padding:9px 11px }
 .category-chip strong { color:#172443; font-size:12px }
 .category-chip small { color:#4163d8; font-size:11px; font-weight:700 }
-.event-actions { align-items:center; display:flex; gap:14px; justify-content:flex-end }
+.event-actions { align-items:center; background:linear-gradient(135deg,#f8faff,#eef3ff); border:1px solid #dbe5fb; border-radius:12px; display:flex; gap:14px; justify-content:flex-end; padding:12px 14px }
 .event-actions select { background:transparent; border:0; color:#64718c; font-size:14px; padding:10px }
 .strategy-select { align-items:center; color:#8290a8; display:flex; font-size:12px; gap:5px }
 .strategy-select select { color:#4163d8; font-weight:700 }
@@ -429,7 +429,7 @@ button {
 .event-list { display:grid; gap:10px }
 .event-card { align-items:center; background:#fff; border:1px solid #dce4f5; border-radius:10px; display:grid; gap:18px; grid-template-columns:58px 1fr auto; padding:15px 18px }
 .event-card:hover { border-color:#9fb1f2; box-shadow:0 10px 25px #263c8010 }
-.event-date { align-items:center; background:#e8eeff; border-radius:7px; display:flex; flex-direction:column; justify-content:center; min-height:55px }
+.event-date { align-items:center; background:linear-gradient(145deg,#e8eeff,#dbe5ff); border:1px solid #d0dcfa; border-radius:9px; display:flex; flex-direction:column; justify-content:center; min-height:55px }
 .event-date strong { color:#4163d8; font:700 22px/.9 'Space Grotesk',sans-serif }
 .event-date span { color:#4163d8; font-size:9px; font-weight:700; letter-spacing:1px; margin-top:5px }
 .event-details { min-width:0 }
