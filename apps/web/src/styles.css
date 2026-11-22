@@ -841,6 +841,8 @@ button {
 .site-header { background:#f7f9ffdd; border-bottom:1px solid #e8edf8; position:relative; z-index:5 }
 .primary-button,.auth-submit,.event-details-button,.hero-cta,.search button { background:linear-gradient(135deg,#4a6be0,#3859ca); box-shadow:0 9px 18px #4163d826; transition:background .2s,box-shadow .2s,transform .2s }
 .primary-button:hover,.auth-submit:hover,.event-details-button:hover,.hero-cta:hover,.search button:hover { background:linear-gradient(135deg,#3859ca,#243fa8); box-shadow:0 12px 24px #294abf33; transform:translateY(-1px) }
+.search-suggestions button { background:#fff; box-shadow:none; transform:none }
+.search-suggestions button:hover { background:#f7f9ff; box-shadow:none; transform:none }
 .public-event-card,.event-card,.event-empty,.setup-step,.auth-modal,.booking-modal { box-shadow:var(--shadow) }
 .public-event-card { border-color:#d7e1f5; border-radius:16px; padding:24px; }
 .public-event-card:hover { border-color:#9fb1f2; box-shadow:0 20px 38px #263c8020 }
