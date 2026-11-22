@@ -90,7 +90,11 @@ function BookingModal({ event, session, onClose, onHeld, onSignIn, onBookAnother
     try {
       const result = await apiRequest<{ booking: { id: string; expiresAt: string; totalCents: number; status: 'held' } }>('/bookings/holds', session.token, { method: 'POST', body: JSON.stringify({ eventId: event.id, seatIds: selected }) });
       setHold(result.booking); setSecondsLeft(300); onHeld();
-    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Those seats are no longer available'); }
+    } catch (requestError) {
+      setSelected([]);
+      setError(requestError instanceof Error ? requestError.message : 'Those seats are no longer available');
+      onHeld();
+    }
     finally { setBusy(false); }
   }
   async function cancelHold() {
@@ -283,7 +287,12 @@ export function App() {
     if (filters.city) params.set('city', filters.city);
     if (filters.date) params.set('date', filters.date);
     await publicRequest<{ events: BrowseEvent[]; totalPages: number; page: number }>(`/events?${params.toString()}`)
-      .then((payload) => { setPublicEvents(payload.events); setTotalPages(payload.totalPages); setPage(payload.page); })
+      .then((payload) => {
+        setPublicEvents(payload.events);
+        setTotalPages(payload.totalPages);
+        setPage(payload.page);
+        setSelectedEvent((current) => current ? payload.events.find((event) => event.id === current.id) ?? current : current);
+      })
       .catch(() => setPublicEvents([]))
       .finally(() => setEventsLoading(false));
   }
