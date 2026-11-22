@@ -244,7 +244,6 @@ function OrganizerDashboard({ session }: { session: Session }) {
 
 export function App() {
   const [query, setQuery] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState('');
   const [publicEvents, setPublicEvents] = useState<BrowseEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventsOpen, setEventsOpen] = useState(() => window.location.hash === '#events');
@@ -353,7 +352,6 @@ export function App() {
   function searchEvents(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     openEvents();
-    setSubmittedQuery(query.trim());
     setSearchFocused(false);
     void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: 1 });
     document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
@@ -362,7 +360,6 @@ export function App() {
   function filterByCity(city: string) {
     openEvents();
     setQuery('');
-    setSubmittedQuery('');
     setCityFilter(city);
     setDateFilter('');
     void loadPublicEvents({ city, page: 1 });
@@ -370,9 +367,17 @@ export function App() {
   }
 
   const normalizedQuery = query.trim().toLowerCase();
+  const normalizedCity = cityFilter.trim().toLowerCase();
   const matchingEvents = publicEvents.filter((event) => `${event.name} ${event.venue.city} ${event.venue.name}`.toLowerCase().includes(normalizedQuery));
   const suggestedEvents = normalizedQuery ? matchingEvents : publicEvents;
-  const visibleEvents = submittedQuery ? publicEvents.filter((event) => `${event.name} ${event.venue.city} ${event.venue.name}`.toLowerCase().includes(submittedQuery.toLowerCase())) : publicEvents;
+  const hasActiveFilters = Boolean(normalizedQuery || normalizedCity || dateFilter);
+  const visibleEvents = publicEvents.filter((event) => {
+    const searchableText = `${event.name} ${event.description} ${event.venue.city} ${event.venue.name}`.toLowerCase();
+    const matchesQuery = !normalizedQuery || searchableText.includes(normalizedQuery);
+    const matchesCity = !normalizedCity || event.venue.city.toLowerCase().includes(normalizedCity);
+    const matchesDate = !dateFilter || new Date(event.startsAt).toISOString().slice(0, 10) === dateFilter;
+    return matchesQuery && matchesCity && matchesDate;
+  });
 
   return (
     <div className="site-shell">
@@ -424,11 +429,11 @@ export function App() {
               <input id="event-search" value={query} onFocus={() => setSearchFocused(true)} onChange={(event) => { setQuery(event.target.value); setSearchFocused(true); }} placeholder="Search events or cities" />
               <button type="submit">Search <span aria-hidden="true">→</span></button>
             </div>
-            <div className="search-filters"><label>City <input value={cityFilter} onChange={(event) => setCityFilter(event.target.value)} placeholder="Any city" /></label><label>Date <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} /></label><button type="button" onClick={() => { setQuery(''); setCityFilter(''); setDateFilter(''); setSubmittedQuery(''); void loadPublicEvents({ page: 1 }); }}>Clear filters</button></div>
-            {searchFocused && <div className="search-suggestions" role="listbox" aria-label="Available events">{suggestedEvents.length ? suggestedEvents.slice(0, 5).map((event) => <button type="button" role="option" key={event.id} onMouseDown={(clickEvent) => clickEvent.preventDefault()} onClick={() => { setQuery(event.name); setSubmittedQuery(event.name); setSearchFocused(false); }}>{event.name}<small>{event.venue.city} · {new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></button>) : <p className="no-suggestions">No published events match yet.</p>}</div>}
+            <div className="search-filters"><label>City <input value={cityFilter} onChange={(event) => setCityFilter(event.target.value)} placeholder="Any city" /></label><label>Date <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} /></label><button type="button" onClick={() => { setQuery(''); setCityFilter(''); setDateFilter(''); void loadPublicEvents({ page: 1 }); }}>Clear filters</button></div>
+            {searchFocused && <div className="search-suggestions" role="listbox" aria-label="Available events">{suggestedEvents.length ? suggestedEvents.slice(0, 5).map((event) => <button type="button" role="option" key={event.id} onMouseDown={(clickEvent) => clickEvent.preventDefault()} onClick={() => { setQuery(event.name); setSearchFocused(false); }}>{event.name}<small>{event.venue.city} · {new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></button>) : <p className="no-suggestions">No published events match yet.</p>}</div>}
           </form>
           <div className="section-heading"><div><span className="section-kicker">DISCOVER</span><h2 id="events-title">Upcoming events</h2></div><span className="section-line" /></div>
-          {eventsLoading ? <div className="empty-events"><div className="empty-symbol" aria-hidden="true">↗</div><div><h3>Finding the next good night.</h3><p>Loading published events.</p></div></div> : visibleEvents.length ? <><div className="public-event-grid">{visibleEvents.map((event) => <article className="public-event-card" key={event.id} role="button" tabIndex={0} aria-label={`View details for ${event.name}`} onClick={() => setSelectedEvent(event)} onKeyDown={(keyboardEvent) => { if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') { keyboardEvent.preventDefault(); setSelectedEvent(event); } }}><div className="public-event-top"><span className="event-status published">UPCOMING</span><button type="button" className="event-date-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>{new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}</button></div><button type="button" className="event-title-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>{event.name}</button><p>{event.venue.name} · <button type="button" className="city-filter-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); filterByCity(event.venue.city); }}>{event.venue.city}</button></p><div className="public-event-meta"><span>{event.seats.filter((seat) => seat.available).length} seats available</span><span>From {Math.min(...event.categories.map((category) => category.basePriceCents))}</span></div><button type="button" className="event-details-button" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>View details <span aria-hidden="true">→</span></button></article>)}</div>{totalPages > 1 && <div className="pagination"><button disabled={page === 1} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page - 1 })}>← Previous</button><span>Page {page} of {totalPages}</span><button disabled={page === totalPages} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page + 1 })}>Next →</button></div>}</> : <div className="empty-events"><div className="empty-symbol" aria-hidden="true">✳</div><div><h3>{submittedQuery ? `No events found for “${submittedQuery}”` : 'The calendar is getting ready.'}</h3><p>{submittedQuery ? 'Try another event name or city when events are available.' : 'Published events will appear here as soon as organizers add them.'}</p></div></div>}
+          {eventsLoading ? <div className="empty-events"><div className="empty-symbol" aria-hidden="true">↗</div><div><h3>Finding the next good night.</h3><p>Loading published events.</p></div></div> : visibleEvents.length ? <><div className="public-event-grid">{visibleEvents.map((event) => <article className="public-event-card" key={event.id} role="button" tabIndex={0} aria-label={`View details for ${event.name}`} onClick={() => setSelectedEvent(event)} onKeyDown={(keyboardEvent) => { if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') { keyboardEvent.preventDefault(); setSelectedEvent(event); } }}><div className="public-event-top"><span className="event-status published">UPCOMING</span><button type="button" className="event-date-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>{new Date(event.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}</button></div><button type="button" className="event-title-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>{event.name}</button><p>{event.venue.name} · <button type="button" className="city-filter-link" onClick={(clickEvent) => { clickEvent.stopPropagation(); filterByCity(event.venue.city); }}>{event.venue.city}</button></p><div className="public-event-meta"><span>{event.seats.filter((seat) => seat.available).length} seats available</span><span>From {Math.min(...event.categories.map((category) => category.basePriceCents))}</span></div><button type="button" className="event-details-button" onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelectedEvent(event); }}>View details <span aria-hidden="true">→</span></button></article>)}</div>{totalPages > 1 && <div className="pagination"><button disabled={page === 1} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page - 1 })}>← Previous</button><span>Page {page} of {totalPages}</span><button disabled={page === totalPages} onClick={() => void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page: page + 1 })}>Next →</button></div>}</> : <div className="empty-events"><div className="empty-symbol" aria-hidden="true">✳</div><div><h3>{hasActiveFilters ? 'No matching events found.' : 'The calendar is getting ready.'}</h3><p>{hasActiveFilters ? 'Try a different event name, city, or date.' : 'Published events will appear here as soon as organizers add them.'}</p></div></div>}
         </section>}
 
         {!eventsOpen && <section className="how-section" id="how-it-works" aria-labelledby="how-title">

@@ -125,7 +125,7 @@ export class PgEventRepository implements EventRepository {
   async listPublishedEvents(search: EventSearch): Promise<EventPage> {
     const filters = ["e.status = 'published'", 'e.starts_at > now()'];
     const params: unknown[] = [];
-    if (search.query) { params.push(`%${search.query}%`); filters.push(`(e.name ILIKE $${params.length} OR e.description ILIKE $${params.length})`); }
+    if (search.query) { params.push(`%${search.query}%`); filters.push(`(e.name ILIKE $${params.length} OR e.description ILIKE $${params.length} OR v.name ILIKE $${params.length} OR v.city ILIKE $${params.length})`); }
     if (search.city) { params.push(`%${search.city}%`); filters.push(`v.city ILIKE $${params.length}`); }
     if (search.date) { params.push(search.date); filters.push(`e.starts_at::date = $${params.length}::date`); }
     const count = await this.pool.query<{ count: string }>(`SELECT count(*) FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${filters.join(' AND ')}`, params);
