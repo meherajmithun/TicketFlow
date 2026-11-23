@@ -16,16 +16,19 @@ cp .env.example .env
 # Edit DATABASE_URL and AUTH_TOKEN_SECRET in .env, then:
 npm ci
 npm run db:migrate
-npm run dev:api
+npm run dev
 ```
 
-In another terminal:
-
-```sh
-npm run dev:web
-```
+`npm run dev` starts the API and web app together. To run them separately, use
+`npm run dev:api` and `npm run dev:web` in two terminals. The development web
+server proxies `/api` to port 4000, so start the API before testing signup.
 
 Create a local `ticketflow` database and set `DATABASE_URL` and a unique `AUTH_TOKEN_SECRET` of at least 32 characters in `.env` before running the migration. Set `ORGANIZER_EMAIL` and `ORGANIZER_PASSWORD` in the server environment to provision the organizer account on startup; the password must be at least 12 characters and is stored as a salted hash. Never commit the real credentials. Existing organizer credentials are not overwritten. Open `http://localhost:5173`. The API health endpoint is `http://localhost:4000/health`.
+
+For a hosted web app, set `VITE_API_URL` to the public HTTPS origin of the API
+when building the frontend, and set the API's `CLIENT_ORIGIN` to the exact web
+app origin. Without a public API URL, a frontend-only deployment cannot handle
+signup, login, events, or booking.
 
 The migration runner records applied SQL files in `schema_migrations`, so running `npm run db:migrate` again is safe. Run it after pulling changes to apply the event details and discovery migrations (`002` and `003`).
 

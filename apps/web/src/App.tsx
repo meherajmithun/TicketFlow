@@ -21,21 +21,34 @@ type AppNotification = {
 };
 type CustomerBooking = { id: string; eventId: string; eventName: string; startsAt: string; status: "held" | "pending_payment" | "confirmed" | "expired" | "cancelled"; totalCents: number; seats: Array<{ id: string; rowLabel: string; seatNumber: number }> };
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+// In development Vite proxies /api to the API, so the browser uses one origin.
+// A deployed web app must set VITE_API_URL to its public API origin.
+const API_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, "") || "/api";
+
+const connectionError = import.meta.env.DEV
+  ? "Cannot connect to the TicketFlow API. Run npm run dev to start both services, then try again."
+  : "Cannot connect to the TicketFlow API. Please try again later.";
 
 async function authRequest(path: string, body: Record<string, string>) {
-  const response = await fetch(`${API_URL}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const payload = (await response.json()) as {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error(connectionError);
+  }
+  const payload = (await response.json().catch(() => null)) as {
     user?: PublicUser;
     token?: string;
     error?: { message?: string };
-  };
+  } | null;
   if (!response.ok)
-    throw new Error(payload.error?.message ?? "Something went wrong");
+    throw new Error(payload?.error?.message ?? (response.status >= 500 ? connectionError : "Something went wrong"));
+  if (!payload?.user || !payload.token)
+    throw new Error(connectionError);
   return payload as Session;
 }
 
