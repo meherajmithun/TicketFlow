@@ -15,7 +15,7 @@ flowchart LR
   BookingService --> Domain[Booking, hold, pricing, refund rules]
 ```
 
-The API exposes `/health`, account registration/login/profile routes, organizer venue/event routes, public published-event browsing, customer booking/payment routes, and notifications. `server.ts` wires the PostgreSQL pool, repositories, and services. `db:migrate` applies SQL files once and records them in `schema_migrations`. The browser includes the account experience, discovery shell, seat picker, booking flow, and organizer studio.
+The API exposes `/health`, customer registration and login/profile routes, organizer venue/event routes, public published-event browsing, customer booking/payment routes, and notifications. `server.ts` wires the PostgreSQL pool, repositories, and services. It provisions an organizer account from `ORGANIZER_EMAIL` and `ORGANIZER_PASSWORD` when both are set; public registration always creates a customer. `db:migrate` applies SQL files once and records them in `schema_migrations`. The browser includes the account experience, discovery shell, category and phase filters, event details, seat picker, booking flow, booking history, guide page, and organizer studio.
 
 ## Layers to complete
 
@@ -39,4 +39,4 @@ Payment providers and notification channels use interfaces so additional provide
 
 `event_seats.current_booking_id` represents the current claim. To hold a seat, create a booking and conditionally update the requested seat rows in **one PostgreSQL transaction**, in a stable seat ID order. The update must match only unclaimed seats or expired holds. Check that every requested row was updated before committing; otherwise roll back the whole transaction. PostgreSQL row locking serializes competing updates to the same seat. Payment confirmation is performed only after a successful provider call, and the payment transaction verifies the booking claim before setting `confirmed_at`. Expired holds are released by the scheduled cleanup job and may also be replaced atomically by a new hold. The CI suite runs a two-customer same-seat race against PostgreSQL.
 
-The booking service will validate organizer ownership for event changes, persist every status change in `booking_status_history`, and use `payment_attempts`' unique `(booking_id, idempotency_key)` constraint to make retries safe.
+The event service validates organizer ownership for event changes. The booking service persists status changes in `booking_status_history` and uses `payment_attempts`' unique `(booking_id, idempotency_key)` constraint to make retries safe. Public event queries and seat holds require a published event, so a private draft cannot be listed, opened, or booked by a customer. Discovery treats an event as live between its start and end times; only published events whose end time is in the future can be held for booking.
