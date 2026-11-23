@@ -10,7 +10,7 @@ export class BookingError extends Error {
   }
 }
 
-type SeatRow = { id: string; row_label: string; seat_number: number; base_price_cents: number; current_booking_id: string | null; hold_expires_at: Date | null };
+type SeatRow = { id: string; row_label: string; seat_number: number; base_price_cents: number; current_booking_id: string | null; hold_expires_at: Date | null; confirmed_at: Date | null };
 
 export class PgBookingRepository {
   constructor(private readonly pool: Pool) {}
@@ -25,13 +25,17 @@ export class PgBookingRepository {
       if (!event.rows[0]) throw new BookingError('EVENT_NOT_FOUND');
       const uniqueSeatIds = [...new Set(seatIds)].sort();
       const seats = await client.query<SeatRow>(
-        `SELECT s.id, s.row_label, s.seat_number, c.base_price_cents, s.current_booking_id, s.hold_expires_at
+        `SELECT s.id, s.row_label, s.seat_number, c.base_price_cents, s.current_booking_id, s.hold_expires_at, s.confirmed_at
          FROM event_seats s JOIN seat_categories c ON c.id = s.category_id
          WHERE s.event_id = $1 AND s.id = ANY($2::uuid[]) ORDER BY s.id FOR UPDATE`, [eventId, uniqueSeatIds],
       );
       if (seats.rowCount !== uniqueSeatIds.length) throw new BookingError('SEAT_NOT_IN_EVENT');
       const now = Date.now();
-      if (seats.rows.some((seat) => seat.current_booking_id && (seat.hold_expires_at === null || seat.hold_expires_at.getTime() > now))) throw new BookingError('SEATS_NOT_AVAILABLE');
+      // A seat is unavailable if it is permanently confirmed (booked), OR if it has an active hold that hasn't expired yet.
+      if (seats.rows.some((seat) =>
+        seat.confirmed_at !== null ||
+        (seat.current_booking_id && (seat.hold_expires_at === null || seat.hold_expires_at.getTime() > now))
+      )) throw new BookingError('SEATS_NOT_AVAILABLE');
       const expiresAt = new Date(now + 5 * 60 * 1000);
       const pricedSeats = seats.rows.map((seat) => ({ ...seat, priceCents: priceSeat(event.rows[0]!.pricing_strategy, { basePriceCents: seat.base_price_cents, eventStartsAt: event.rows[0]!.starts_at, now: new Date(now) }) }));
       const totalCents = pricedSeats.reduce((total, seat) => total + seat.priceCents, 0);
@@ -41,7 +45,9 @@ export class PgBookingRepository {
       const bookingId = booking.rows[0]!.id;
       for (const seat of pricedSeats) {
         await client.query('INSERT INTO booking_seats (booking_id, event_seat_id, price_cents) VALUES ($1, $2, $3)', [bookingId, seat.id, seat.priceCents]);
-        await client.query(`UPDATE event_seats SET current_booking_id = $1, hold_expires_at = $2, confirmed_at = NULL WHERE id = $3`, [bookingId, expiresAt, seat.id]);
+      // Safety guard: never overwrite a confirmed seat when creating a new hold.
+      // The availability check above already blocks this, but add a WHERE guard as defence-in-depth.
+      await client.query(`UPDATE event_seats SET current_booking_id = $1, hold_expires_at = $2, confirmed_at = NULL WHERE id = $3 AND confirmed_at IS NULL`, [bookingId, expiresAt, seat.id]);
       }
       await client.query(`INSERT INTO booking_status_history (booking_id, from_status, to_status) VALUES ($1, NULL, 'held')`, [bookingId]);
       await client.query('COMMIT');
@@ -76,7 +82,12 @@ export class PgBookingRepository {
       const cancelledAt = new Date();
       const refundCents = booking.status === 'confirmed' ? refundAmountCents(booking.total_cents, booking.starts_at, cancelledAt) : 0;
       await client.query(`UPDATE bookings SET status = 'cancelled', updated_at = now() WHERE id = $1`, [bookingId]);
-      await client.query(`UPDATE event_seats SET current_booking_id = NULL, hold_expires_at = NULL, confirmed_at = NULL WHERE current_booking_id = $1`, [bookingId]);
+      // Only clear seat state if the booking was NOT confirmed (i.e. a hold/pending cancellation).
+      // Confirmed bookings have confirmed_at set — clearing it would make the seat bookable again, which is wrong.
+      // For confirmed cancellations we keep confirmed_at so the seat remains permanently "booked" in history.
+      if (booking.status !== 'confirmed') {
+        await client.query(`UPDATE event_seats SET current_booking_id = NULL, hold_expires_at = NULL, confirmed_at = NULL WHERE current_booking_id = $1`, [bookingId]);
+      }
       await client.query(`INSERT INTO booking_status_history (booking_id, from_status, to_status) VALUES ($1, $2, 'cancelled')`, [bookingId, booking.status]);
       await client.query('COMMIT');
       return { bookingId, status: 'cancelled', refundCents, cancelledAt: cancelledAt.toISOString() };
@@ -113,7 +124,9 @@ export class PgBookingRepository {
       const expired = await client.query<{ id: string; status: 'held' | 'pending_payment' }>(`SELECT b.id, b.status FROM bookings b WHERE b.status IN ('held', 'pending_payment') AND EXISTS (SELECT 1 FROM event_seats s WHERE s.current_booking_id = b.id AND s.hold_expires_at <= now()) FOR UPDATE OF b SKIP LOCKED`);
       for (const booking of expired.rows) {
         await client.query(`UPDATE bookings SET status = 'expired', updated_at = now() WHERE id = $1`, [booking.id]);
-        await client.query(`UPDATE event_seats SET current_booking_id = NULL, hold_expires_at = NULL, confirmed_at = NULL WHERE current_booking_id = $1`, [booking.id]);
+        // Only clear seats whose hold has expired AND that have NOT been confirmed.
+        // Adding confirmed_at IS NULL ensures we never accidentally free a permanently booked seat.
+        await client.query(`UPDATE event_seats SET current_booking_id = NULL, hold_expires_at = NULL, confirmed_at = NULL WHERE current_booking_id = $1 AND confirmed_at IS NULL`, [booking.id]);
         await client.query(`INSERT INTO booking_status_history (booking_id, from_status, to_status) VALUES ($1, $2, 'expired')`, [booking.id, booking.status]);
       }
       await client.query('COMMIT');
