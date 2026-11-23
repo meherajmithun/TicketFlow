@@ -18,7 +18,7 @@ export interface EventRepository {
 
 type EventRow = {
   id: string; organizer_id: string; venue_id: string; venue_name: string; city: string; address: string;
-  name: string; description: string; starts_at: Date; pricing_strategy: Event['pricingStrategy']; status: Event['status'];
+  name: string; description: string; poster_url: string; highlights: string; category: string; starts_at: Date; ends_at: Date; pricing_strategy: Event['pricingStrategy']; status: Event['status'];
 };
 type CategoryRow = { id: string; name: string; base_price_cents: number };
 type SeatRow = { id: string; row_label: string; seat_number: number; category_id: string; category_name: string; base_price_cents: number; current_booking_id: string | null; hold_expires_at: Date | null; confirmed_at: Date | null };
@@ -31,7 +31,11 @@ function mapEvent(row: EventRow, categories: CategoryRow[], seats: SeatRow[]): E
     venue: { id: row.venue_id, organizerId: row.organizer_id, name: row.venue_name, city: row.city, address: row.address },
     name: row.name,
     description: row.description,
+    posterUrl: row.poster_url,
+    highlights: row.highlights,
+    category: row.category,
     startsAt: row.starts_at.toISOString(),
+    endsAt: row.ends_at.toISOString(),
     pricingStrategy: row.pricing_strategy,
     status: row.status,
     categories: categories.map((category) => ({ id: category.id, name: category.name, basePriceCents: category.base_price_cents })),
@@ -86,13 +90,13 @@ export class PgEventRepository implements EventRepository {
     try {
       await client.query('BEGIN');
       const eventResult = await client.query<EventRow>(
-        `INSERT INTO events (organizer_id, venue_id, name, description, starts_at, pricing_strategy, status)
-         SELECT $1, id, $3, $4, $5, $6, $7 FROM venues WHERE id = $2 AND organizer_id = $1
-         RETURNING id, organizer_id, venue_id, name, description, starts_at, pricing_strategy, status,
+        `INSERT INTO events (organizer_id, venue_id, name, description, poster_url, highlights, category, starts_at, ends_at, pricing_strategy, status)
+         SELECT $1, id, $3, $4, $5, $6, $7, $8, $9, $10, $11 FROM venues WHERE id = $2 AND organizer_id = $1
+         RETURNING id, organizer_id, venue_id, name, description, poster_url, highlights, category, starts_at, ends_at, pricing_strategy, status,
            (SELECT name FROM venues WHERE venues.id = events.venue_id) AS venue_name,
            (SELECT city FROM venues WHERE venues.id = events.venue_id) AS city,
            (SELECT address FROM venues WHERE venues.id = events.venue_id) AS address`,
-        [input.organizerId, input.venueId, input.name, input.description, input.startsAt, input.pricingStrategy, input.status],
+        [input.organizerId, input.venueId, input.name, input.description, input.posterUrl, input.highlights, input.category ?? 'Other', input.startsAt, input.endsAt ?? new Date(Date.parse(input.startsAt) + 3 * 60 * 60 * 1000).toISOString(), input.pricingStrategy, input.status],
       );
       if (!eventResult.rows[0]) throw new Error('VENUE_NOT_FOUND_OR_NOT_OWNED');
       const event = eventResult.rows[0];
@@ -138,7 +142,7 @@ export class PgEventRepository implements EventRepository {
       if (!venue.rows[0]) throw new Error('VENUE_NOT_FOUND_OR_NOT_OWNED');
       const bookings = await client.query<{ count: string }>(`SELECT count(*) FROM booking_seats bs JOIN event_seats s ON s.id = bs.event_seat_id WHERE s.event_id = $1`, [input.eventId]);
       if (Number(bookings.rows[0]?.count ?? 0) > 0) throw new Error('EVENT_HAS_BOOKINGS');
-      await client.query(`UPDATE events SET venue_id = $2, name = $3, description = $4, starts_at = $5, pricing_strategy = $6, status = $7 WHERE organizer_id = $1 AND id = $8`, [input.organizerId, input.venueId, input.name, input.description, input.startsAt, input.pricingStrategy, input.status, input.eventId]);
+      await client.query(`UPDATE events SET venue_id = $2, name = $3, description = $4, poster_url = $5, highlights = $6, category = $7, starts_at = $8, ends_at = $9, pricing_strategy = $10, status = $11 WHERE organizer_id = $1 AND id = $12`, [input.organizerId, input.venueId, input.name, input.description, input.posterUrl, input.highlights, input.category ?? 'Other', input.startsAt, input.endsAt ?? new Date(Date.parse(input.startsAt) + 3 * 60 * 60 * 1000).toISOString(), input.pricingStrategy, input.status, input.eventId]);
       await client.query('DELETE FROM event_seats WHERE event_id = $1', [input.eventId]);
       await client.query('DELETE FROM seat_categories WHERE event_id = $1', [input.eventId]);
       const categories = new Map<string, CategoryRow>();
@@ -169,22 +173,28 @@ export class PgEventRepository implements EventRepository {
   }
 
   async listPublishedEvents(search: EventSearch): Promise<EventPage> {
-    const filters = ["e.status = 'published'", search.past ? 'e.starts_at <= now()' : 'e.starts_at > now()'];
+    const period = search.status ?? (search.past ? 'ended' : 'upcoming');
+    const filters = ["e.status = 'published'"];
+    if (period === 'live') filters.push('e.starts_at <= now() AND e.ends_at > now()');
+    if (period === 'upcoming') filters.push('e.starts_at > now()');
+    if (period === 'ended') filters.push('e.ends_at <= now()');
     const params: unknown[] = [];
     if (search.query) { params.push(`%${search.query}%`); filters.push(`(e.name ILIKE $${params.length} OR e.description ILIKE $${params.length} OR v.name ILIKE $${params.length} OR v.city ILIKE $${params.length})`); }
     if (search.city) { params.push(`%${search.city}%`); filters.push(`v.city ILIKE $${params.length}`); }
     if (search.date) { params.push(search.date); filters.push(`e.starts_at::date = $${params.length}::date`); }
+    if (search.category && search.category !== 'All categories') { params.push(search.category); filters.push(`e.category = $${params.length}`); }
     const count = await this.pool.query<{ count: string }>(`SELECT count(*) FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${filters.join(' AND ')}`, params);
     const total = Number(count.rows[0]?.count ?? 0);
     const limitPlaceholder = params.length + 1;
     const offsetPlaceholder = params.length + 2;
     params.push(search.pageSize, (search.page - 1) * search.pageSize);
-    const events = await this.findMany(filters.join(' AND '), params, `LIMIT $${limitPlaceholder} OFFSET $${offsetPlaceholder}`);
+    const orderBy = { soonest: 'e.starts_at ASC', latest: 'e.starts_at DESC', ending: 'e.ends_at ASC', name_asc: 'e.name ASC', name_desc: 'e.name DESC' }[search.sort ?? 'soonest'];
+    const events = await this.findMany(filters.join(' AND '), params, `ORDER BY ${orderBy}, e.id ASC LIMIT $${limitPlaceholder} OFFSET $${offsetPlaceholder}`);
     return { events, total, page: search.page, pageSize: search.pageSize, totalPages: Math.ceil(total / search.pageSize) };
   }
 
   async findPublishedEvent(eventId: string): Promise<Event | null> {
-    const events = await this.findMany("e.status = 'published' AND e.starts_at > now() AND e.id = $1", [eventId]);
+    const events = await this.findMany("e.status = 'published' AND e.id = $1", [eventId]);
     return events[0] ?? null;
   }
 
@@ -196,8 +206,8 @@ export class PgEventRepository implements EventRepository {
   private async findMany(where: string, params: unknown[], pagination = ''): Promise<Event[]> {
     const result = await this.pool.query<EventRow>(
       `SELECT e.id, e.organizer_id, e.venue_id, v.name AS venue_name, v.city, v.address,
-              e.name, e.description, e.starts_at, e.pricing_strategy, e.status
-       FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${where} ORDER BY e.starts_at ASC ${pagination}`, params,
+              e.name, e.description, e.poster_url, e.highlights, e.category, e.starts_at, e.ends_at, e.pricing_strategy, e.status
+       FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${where} ${pagination || 'ORDER BY e.starts_at ASC'}`, params,
     );
     const events: Event[] = [];
     for (const row of result.rows) {

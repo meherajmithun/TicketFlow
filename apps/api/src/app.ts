@@ -16,7 +16,7 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
   const app = express();
   app.disable('x-powered-by');
   app.use(cors({ origin: config.clientOrigin }));
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '3mb' }));
 
   app.use((request, response, next) => {
     const started = Date.now();
@@ -84,7 +84,11 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
           venueId: input.venueId,
           name: input.name,
           description: input.description,
+          posterUrl: input.posterUrl,
+          highlights: input.highlights,
+          category: input.category,
           startsAt: input.startsAt,
+          endsAt: input.endsAt,
           pricingStrategy: input.pricingStrategy,
           status: input.status,
           rows: input.seatMap.rows.map((row) => ({ label: row.label, category: categoryNames.get(row.category.toLowerCase())! })),
@@ -109,7 +113,7 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
       try {
         const input = updateEventSchema.parse(request.body);
         const categoryNames = new Map(input.categories.map((category) => [category.name.toLowerCase(), category.name]));
-        response.json({ event: await events.updateEvent({ eventId: request.params.eventId!, organizerId: response.locals.auth.sub, venueId: input.venueId, name: input.name, description: input.description, startsAt: input.startsAt, pricingStrategy: input.pricingStrategy, status: input.status, rows: input.seatMap.rows.map((row) => ({ label: row.label, category: categoryNames.get(row.category.toLowerCase())! })), seatsPerRow: input.seatMap.seatsPerRow, categories: input.categories }) });
+        response.json({ event: await events.updateEvent({ eventId: request.params.eventId!, organizerId: response.locals.auth.sub, venueId: input.venueId, name: input.name, description: input.description, posterUrl: input.posterUrl, highlights: input.highlights, category: input.category, startsAt: input.startsAt, endsAt: input.endsAt, pricingStrategy: input.pricingStrategy, status: input.status, rows: input.seatMap.rows.map((row) => ({ label: row.label, category: categoryNames.get(row.category.toLowerCase())! })), seatsPerRow: input.seatMap.seatsPerRow, categories: input.categories }) });
       } catch (error) { next(error); }
     });
 
@@ -123,7 +127,7 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     app.get('/events', async (_request, response, next) => {
       try {
         const search = eventSearchSchema.parse(_request.query);
-        response.json(await events.listPublishedEvents({ query: search.q, city: search.city, date: search.date, past: search.past, page: search.page, pageSize: search.pageSize }));
+        response.json(await events.listPublishedEvents({ query: search.q, city: search.city, date: search.date, past: search.past, status: search.status, category: search.category, sort: search.sort, page: search.page, pageSize: search.pageSize }));
       }
       catch (error) { next(error); }
     });

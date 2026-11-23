@@ -12,6 +12,10 @@ const environment = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().url(),
   AUTH_TOKEN_SECRET: z.string().min(32),
+  ORGANIZER_EMAIL: z.email().optional(),
+  ORGANIZER_PASSWORD: z.string().min(12).optional(),
+}).refine((value) => Boolean(value.ORGANIZER_EMAIL) === Boolean(value.ORGANIZER_PASSWORD), {
+  message: 'Set ORGANIZER_EMAIL and ORGANIZER_PASSWORD together',
 });
 
 export type AppConfig = {
@@ -20,6 +24,8 @@ export type AppConfig = {
   nodeEnv: 'development' | 'test' | 'production';
   databaseUrl: string;
   authTokenSecret: string;
+  organizerEmail?: string;
+  organizerPassword?: string;
 };
 
 export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -30,5 +36,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     nodeEnv: parsed.NODE_ENV,
     databaseUrl: parsed.DATABASE_URL,
     authTokenSecret: parsed.AUTH_TOKEN_SECRET,
+    organizerEmail: parsed.ORGANIZER_EMAIL,
+    organizerPassword: parsed.ORGANIZER_PASSWORD,
   };
 }

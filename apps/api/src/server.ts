@@ -13,9 +13,11 @@ import { PgPaymentRepository } from './payment/repository.js';
 import { ConsoleEmailChannel } from './notification/channels.js';
 import { NotificationService } from './notification/service.js';
 import { PgNotificationRepository } from './notification/repository.js';
+import { ensureOrganizer } from './auth/organizer.js';
 
 const config = loadConfig();
 const pool = new Pool({ connectionString: config.databaseUrl });
+await ensureOrganizer(pool, config.organizerEmail, config.organizerPassword);
 const auth = new AuthService(new PgUserRepository(pool), config.authTokenSecret);
 const events = new EventService(new PgEventRepository(pool));
 const bookings = new BookingService(new PgBookingRepository(pool));

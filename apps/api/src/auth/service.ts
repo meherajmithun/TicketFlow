@@ -24,10 +24,10 @@ export class AuthService {
     return { user: publicUser, token: signToken({ sub: user.id, role: user.role }, this.tokenSecret) };
   }
 
-  async register(input: { email: string; password: string; role: Role }) {
+  async register(input: { email: string; password: string; role?: 'customer' }) {
     const email = input.email.trim().toLowerCase();
     const passwordHash = await hashPassword(input.password);
-    const user = await this.users.create({ email, passwordHash, role: input.role });
+    const user = await this.users.create({ email, passwordHash, role: 'customer' });
     if (!user) throw new AuthError('EMAIL_TAKEN');
     return this.session(user);
   }
