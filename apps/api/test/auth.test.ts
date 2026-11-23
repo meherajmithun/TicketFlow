@@ -67,8 +67,12 @@ test('registration, login, validation, duplicate emails, and protected profile',
     const invalid = await post('/auth/register', { email: 'bad', password: 'abcd', role: 'customer' });
     assert.equal(invalid.status, 400);
 
-    const fiveCharacterPassword = await post('/auth/register', { email: 'five@example.com', password: 'abcde', role: 'organizer' });
+    const organizerRegistration = await post('/auth/register', { email: 'organizer@example.com', password: 'long-enough-password', role: 'organizer' });
+    assert.equal(organizerRegistration.status, 400);
+
+    const fiveCharacterPassword = await post('/auth/register', { email: 'five@example.com', password: 'abcde' });
     assert.equal(fiveCharacterPassword.status, 201);
+    assert.equal((await fiveCharacterPassword.json() as { user: { role: string } }).user.role, 'customer');
 
     const input = { email: ' Person@Example.com ', password: 'a strong password', role: 'customer' };
     const registered = await post('/auth/register', input);
