@@ -5,6 +5,7 @@ import { createApp } from '../src/app.js';
 import { AuthService, type User, type UserRepository } from '../src/auth/service.js';
 import { signToken } from '../src/auth/token.js';
 import { EventService } from '../src/events/service.js';
+import { createEventSchema } from '../src/events/http.js';
 import type { EventRepository } from '../src/events/repository.js';
 import type { CreateEventInput, CreateVenueInput, Event, Venue } from '../src/events/types.js';
 import type { AppConfig } from '../src/config.js';
@@ -14,6 +15,19 @@ const organizerId = 'e6ae9c7b-e184-4c52-b8be-a33de85bccd1';
 const customerId = 'c6ae9c7b-e184-4c52-b8be-a33de85bccd3';
 const venueId = 'a6ae9c7b-e184-4c52-b8be-a33de85bccd4';
 const eventId = 'b6ae9c7b-e184-4c52-b8be-a33de85bccd5';
+
+test('event posters accept supported uploaded images and reject active content', () => {
+  const input = {
+    venueId,
+    name: 'Poster event',
+    startsAt: '2099-06-01T18:00:00+00:00',
+    seatMap: { rows: [{ label: 'A', category: 'General' }], seatsPerRow: 1 },
+    categories: [{ name: 'General', basePriceCents: 1000 }],
+  };
+  assert.equal(createEventSchema.safeParse({ ...input, posterUrl: 'data:image/png;base64,iVBORw0KGgo=' }).success, true);
+  assert.equal(createEventSchema.safeParse({ ...input, posterUrl: 'data:image/svg+xml;base64,PHN2Zz4=' }).success, false);
+  assert.equal(createEventSchema.safeParse({ ...input, posterUrl: 'javascript:alert(1)' }).success, false);
+});
 
 class MemoryUsers implements UserRepository {
   async create(input: Pick<User, 'email' | 'passwordHash' | 'role'>) {
@@ -43,6 +57,8 @@ class MemoryEvents implements EventRepository {
       venue,
       name: input.name,
       description: input.description,
+      posterUrl: input.posterUrl,
+      highlights: input.highlights,
       startsAt: input.startsAt,
       pricingStrategy: input.pricingStrategy,
       status: input.status,
@@ -65,7 +81,7 @@ class MemoryEvents implements EventRepository {
   async updateEvent(input: CreateEventInput & { eventId: string }) {
     const event = await this.findOrganizerEvent(input.organizerId, input.eventId);
     if (!event) return null;
-    const updated = { ...event, name: input.name, description: input.description, startsAt: input.startsAt, pricingStrategy: input.pricingStrategy, status: input.status, categories: input.categories.map((category, index) => ({ id: `updated-${index}`, ...category })), seats: input.rows.flatMap((row, rowIndex) => Array.from({ length: input.seatsPerRow }, (_, index) => ({ id: `updated-seat-${rowIndex}-${index}`, rowLabel: row.label, seatNumber: index + 1, categoryId: input.categories[0]!.name, categoryName: row.category, basePriceCents: input.categories[0]!.basePriceCents, available: true, status: 'available' as const }))) };
+    const updated = { ...event, name: input.name, description: input.description, posterUrl: input.posterUrl, highlights: input.highlights, startsAt: input.startsAt, pricingStrategy: input.pricingStrategy, status: input.status, categories: input.categories.map((category, index) => ({ id: `updated-${index}`, ...category })), seats: input.rows.flatMap((row, rowIndex) => Array.from({ length: input.seatsPerRow }, (_, index) => ({ id: `updated-seat-${rowIndex}-${index}`, rowLabel: row.label, seatNumber: index + 1, categoryId: input.categories[0]!.name, categoryName: row.category, basePriceCents: input.categories[0]!.basePriceCents, available: true, status: 'available' as const }))) };
     this.events.set(event.id, updated);
     return updated;
   }
@@ -77,7 +93,10 @@ class MemoryEvents implements EventRepository {
     this.events.set(id, updated);
     return updated;
   }
-  async listPublishedEvents() { return [...this.events.values()].filter((event) => event.status === 'published'); }
+  async listPublishedEvents() {
+    const events = [...this.events.values()].filter((event) => event.status === 'published');
+    return { events, total: events.length, page: 1, pageSize: 9, totalPages: events.length ? 1 : 0 };
+  }
   async findPublishedEvent(id: string) { const event = this.events.get(id); return event?.status === 'published' ? event : null; }
 }
 
@@ -115,6 +134,10 @@ test('organizers create venues and events, while customers cannot manage them', 
     }) });
     assert.equal(updateResponse.status, 200);
     assert.equal((await updateResponse.json() as { event: Event }).event.name, 'Summer Live Updated');
+    const draftBrowseResponse = await fetch(`${base}/events`);
+    assert.equal(draftBrowseResponse.status, 200);
+    assert.deepEqual((await draftBrowseResponse.json() as { events: Event[] }).events, []);
+    assert.equal((await fetch(`${base}/events/${eventId}`)).status, 404);
     const publishResponse = await fetch(`${base}/events/organizer/${eventId}/status`, { method: 'PATCH', headers: organizerHeaders, body: JSON.stringify({ status: 'published' }) });
     assert.equal(publishResponse.status, 200);
     assert.equal((await fetch(`${base}/events`)).status, 200);

@@ -22,7 +22,7 @@ postgresTest('PostgreSQL row locking allows only one customer to hold the same s
     await pool.query('BEGIN');
     await pool.query(`INSERT INTO users (id, email, password_hash, role) VALUES ($1, $2, 'integration-test', 'organizer'), ($3, $4, 'integration-test', 'customer'), ($5, $6, 'integration-test', 'customer')`, [organizerId, `${organizerId}@test.invalid`, firstCustomerId, `${firstCustomerId}@test.invalid`, secondCustomerId, `${secondCustomerId}@test.invalid`]);
     await pool.query('INSERT INTO venues (id, organizer_id, name, city, address) VALUES ($1, $2, $3, $4, $5)', [venueId, organizerId, 'Race Test Venue', 'Test City', 'Test Address']);
-    await pool.query(`INSERT INTO events (id, organizer_id, venue_id, name, description, starts_at, pricing_strategy, status) VALUES ($1, $2, $3, 'Race Test Event', '', '2099-01-01T18:00:00Z', 'base', 'published')`, [eventId, organizerId, venueId]);
+    await pool.query(`INSERT INTO events (id, organizer_id, venue_id, name, description, starts_at, ends_at, pricing_strategy, status) VALUES ($1, $2, $3, 'Race Test Event', '', '2099-01-01T18:00:00Z', '2099-01-01T21:00:00Z', 'base', 'published')`, [eventId, organizerId, venueId]);
     await pool.query('INSERT INTO seat_categories (id, event_id, name, base_price_cents) VALUES ($1, $2, $3, $4)', [categoryId, eventId, 'General', 2500]);
     await pool.query('INSERT INTO event_seats (id, event_id, category_id, row_label, seat_number) VALUES ($1, $2, $3, $4, $5)', [seatId, eventId, categoryId, 'A', 1]);
     await pool.query('COMMIT');
