@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useCallback, type FormEvent } from "react";
 
 type Role = "organizer" | "customer";
 type PublicUser = { id: string; email: string; role: Role };
@@ -82,6 +82,89 @@ function eventPhase(event: BrowseEvent): "Live" | "Upcoming" | "Ended" {
   const now = Date.now();
   if (Date.parse(event.endsAt) <= now) return "Ended";
   return Date.parse(event.startsAt) <= now ? "Live" : "Upcoming";
+}
+
+// ─── Countdown hook ───────────────────────────────────────────────────────────
+function useCountdown(targetDate: string) {
+  const calc = useCallback(
+    () => Math.max(0, Date.parse(targetDate) - Date.now()),
+    [targetDate],
+  );
+  const [timeLeft, setTimeLeft] = useState(calc);
+  useEffect(() => {
+    if (!targetDate) return;
+    const timer = setInterval(() => setTimeLeft(calc()), 1000);
+    return () => clearInterval(timer);
+  }, [targetDate, calc]);
+  return {
+    days: Math.floor(timeLeft / 86_400_000),
+    hours: Math.floor((timeLeft % 86_400_000) / 3_600_000),
+    mins: Math.floor((timeLeft % 3_600_000) / 60_000),
+    secs: Math.floor((timeLeft % 60_000) / 1000),
+    expired: timeLeft === 0,
+  };
+}
+
+// ─── QR pattern generator (no external library) ──────────────────────────────
+function generateQRPattern(text: string): string {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++)
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  const h = (hash >>> 0) * 2654435761;
+  const bits = Array.from({ length: 49 }, (_, i) => ((h >> (i % 32)) & 1 ? "█" : "░"));
+  return Array.from({ length: 7 }, (_, r) => bits.slice(r * 7, r * 7 + 7).join("")).join("\n");
+}
+
+// ─── Featured countdown component ────────────────────────────────────────────
+function FeaturedCountdown({ startsAt }: { startsAt: string }) {
+  const { days, hours, mins, secs, expired } = useCountdown(startsAt);
+  if (expired) return null;
+  return (
+    <div className="featured-countdown" aria-label="Time until event">
+      {days > 0 && (
+        <div className="countdown-block">
+          <strong>{days}</strong>
+          <span>Days</span>
+        </div>
+      )}
+      <div className="countdown-block">
+        <strong>{String(hours).padStart(2, "0")}</strong>
+        <span>Hrs</span>
+      </div>
+      <div className="countdown-block">
+        <strong>{String(mins).padStart(2, "0")}</strong>
+        <span>Min</span>
+      </div>
+      <div className="countdown-block">
+        <strong>{String(secs).padStart(2, "0")}</strong>
+        <span>Sec</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Card countdown badge ─────────────────────────────────────────────────────
+function CountdownBadge({ startsAt }: { startsAt: string }) {
+  const { days, hours, mins, expired } = useCountdown(startsAt);
+  if (expired || Date.parse(startsAt) <= Date.now()) return null;
+  return (
+    <div className="card-countdown" aria-label="Starts in">
+      {days > 0 && (
+        <div className="card-countdown-block">
+          <strong>{days}</strong>
+          <span>d</span>
+        </div>
+      )}
+      <div className="card-countdown-block">
+        <strong>{String(hours).padStart(2, "0")}</strong>
+        <span>h</span>
+      </div>
+      <div className="card-countdown-block">
+        <strong>{String(mins).padStart(2, "0")}</strong>
+        <span>m</span>
+      </div>
+    </div>
+  );
 }
 
 function formatPrice(amount: number) {
@@ -219,6 +302,41 @@ function EventDetailsModal({
             <span><strong>{event.categories.length}</strong> ticket {event.categories.length === 1 ? "category" : "categories"}</span>
             <span><strong>{formatPrice(Math.min(...event.categories.map((category) => category.basePriceCents)))}</strong> starting price</span>
           </div>
+          {/* Social share row */}
+          <div className="event-share-row">
+            {typeof navigator !== "undefined" && "share" in navigator && (
+              <button
+                type="button"
+                className="share-button share-native"
+                onClick={() => void (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share({ title: event.name, text: event.description, url: window.location.href })}
+              >
+                ↗ Share
+              </button>
+            )}
+            <a
+              className="share-button share-twitter"
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${event.name} @ ${event.venue.name}`)}&url=${encodeURIComponent(window.location.href)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              𝕏 Twitter
+            </a>
+            <a
+              className="share-button share-whatsapp"
+              href={`https://wa.me/?text=${encodeURIComponent(`${event.name} @ ${event.venue.name} — ${window.location.href}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              WhatsApp
+            </a>
+            <button
+              type="button"
+              className="share-button share-copy"
+              onClick={() => { void navigator.clipboard.writeText(window.location.href); }}
+            >
+              Copy link
+            </button>
+          </div>
           {eventPhase(event) === "Ended" ? <p className="event-ended-note">This event has ended. Booking is closed.</p> : <button className="primary-button event-story-action" onClick={onChooseSeats}>Choose your seats <span aria-hidden="true">→</span></button>}
         </div>
       </article>
@@ -236,6 +354,7 @@ function PublicEventCard({ event, onOpen, onCity }: { event: BrowseEvent; onOpen
         {event.posterUrl && <img src={event.posterUrl} alt="" loading="lazy" onError={(imageEvent) => { imageEvent.currentTarget.hidden = true; }} />}
         <span className="discovery-date"><small>{new Date(event.startsAt).toLocaleDateString(undefined, { month: "short", weekday: "short" })}</small><strong>{new Date(event.startsAt).toLocaleDateString(undefined, { day: "numeric" })}</strong></span>
         <span className={`discovery-phase ${phase.toLowerCase()}`}>{phase === "Live" && <i />} {phase}</span>
+        {phase === "Upcoming" && <CountdownBadge startsAt={event.startsAt} />}
       </button>
       <div className="discovery-card-copy">
         <button className="discovery-card-title" type="button" onClick={onOpen}>{event.name}</button>
@@ -1587,9 +1706,19 @@ export function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileTab, setProfileTab] = useState<"menu" | "profile" | "tickets" | "orders" | "cart">("menu");
   const [customerBookings, setCustomerBookings] = useState<CustomerBooking[]>([]);
-  const [recentlyViewed, setRecentlyViewed] = useState<BrowseEvent | null>(null);
+  const [recentlyViewed, setRecentlyViewed] = useState<BrowseEvent[]>(() => {
+    try {
+      const saved = localStorage.getItem("ticketflow-recent");
+      return saved ? (JSON.parse(saved) as BrowseEvent[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [profileMessage, setProfileMessage] = useState("");
   const [profileBusy, setProfileBusy] = useState(false);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterDone, setNewsletterDone] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type?: "error" } | null>(null);
 
   useEffect(() => {
     if (session)
@@ -1610,7 +1739,21 @@ export function App() {
       .catch(() => setNotifications([]));
   }, [session]);
 
-  useEffect(() => { if (selectedEvent) setRecentlyViewed(selectedEvent); }, [selectedEvent]);
+  useEffect(() => {
+    if (selectedEvent) {
+      setRecentlyViewed((prev) => {
+        const filtered = prev.filter((e) => e.id !== selectedEvent.id);
+        const updated = [selectedEvent, ...filtered].slice(0, 5);
+        localStorage.setItem("ticketflow-recent", JSON.stringify(updated));
+        return updated;
+      });
+    }
+  }, [selectedEvent]);
+
+  function showToast(message: string, type?: "error") {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  }
   useEffect(() => {
     if (!profileOpen || !session || session.user.role !== "customer" || (profileTab !== "tickets" && profileTab !== "orders")) return;
     void apiRequest<{ bookings: CustomerBooking[] }>("/bookings", session.token).then((payload) => setCustomerBookings(payload.bookings)).catch(() => setCustomerBookings([]));
@@ -1931,6 +2074,9 @@ export function App() {
                     <span className="section-kicker">YOUR NEXT MOMENT STARTS HERE</span>
                     <h1>{featuredEvent?.name ?? "Find your place in the moment."}</h1>
                     <p>{featuredEvent ? `${featuredEvent.venue.name} · ${featuredEvent.venue.city} · ${new Date(featuredEvent.startsAt).toLocaleDateString(undefined, { dateStyle: "medium" })}` : "Discover events, pick your spot, and keep every ticket in one place."}</p>
+                    {featuredEvent && eventPhase(featuredEvent) === "Upcoming" && (
+                      <FeaturedCountdown startsAt={featuredEvent.startsAt} />
+                    )}
                     <button className="hero-cta" onClick={featuredEvent ? () => setSelectedEvent(featuredEvent) : openEvents}>{featuredEvent ? "View event" : "Explore events"} <span aria-hidden="true">↗</span></button>
                   </div>
                   {homeEvents.length > 1 && <div className="featured-controls"><button type="button" aria-label="Previous featured event" onClick={() => setFeaturedIndex((index) => (index + homeEvents.length - 1) % homeEvents.length)}>←</button><button type="button" aria-label="Next featured event" onClick={() => setFeaturedIndex((index) => (index + 1) % homeEvents.length)}>→</button></div>}
@@ -1942,6 +2088,40 @@ export function App() {
                 <section className="home-sale" aria-labelledby="sale-title">
                   <div className="home-sale-heading"><h2 id="sale-title">On sale now</h2><button type="button" onClick={openEvents}>View all <span aria-hidden="true">→</span></button></div>
                   {homeEvents.length ? <div className="public-event-grid">{homeEvents.slice(0, 8).map((event) => <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onCity={filterByCity} />)}</div> : <p className="home-empty">New events will appear here when organizers publish them.</p>}
+                </section>
+                {/* Newsletter strip */}
+                <section className="newsletter-strip" aria-label="Stay in the loop">
+                  <div className="newsletter-copy">
+                    <span className="section-kicker">STAY IN THE LOOP</span>
+                    <h2>Never miss an event.</h2>
+                    <p>Get notified first when new events drop, early-bird deals go live, and your favourite artists announce shows.</p>
+                  </div>
+                  <div className="newsletter-action">
+                    {newsletterDone ? (
+                      <div className="newsletter-success">✓ You&apos;re on the list! We&apos;ll be in touch soon.</div>
+                    ) : (
+                      <form
+                        className="newsletter-form"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (newsletterEmail.trim()) {
+                            setNewsletterDone(true);
+                            showToast("✓ You're on the list!");
+                          }
+                        }}
+                      >
+                        <input
+                          type="email"
+                          placeholder="your@email.com"
+                          value={newsletterEmail}
+                          onChange={(e) => setNewsletterEmail(e.target.value)}
+                          required
+                          aria-label="Email address for newsletter"
+                        />
+                        <button className="newsletter-submit" type="submit">Notify me</button>
+                      </form>
+                    )}
+                  </div>
                 </section>
               </div>
             )}
@@ -2178,9 +2358,95 @@ export function App() {
               {session.user.role === "customer" && <><button type="button" onClick={() => setProfileTab("tickets")}><span>▣</span>Tickets</button><button type="button" onClick={() => setProfileTab("orders")}><span>▤</span>Orders</button><button type="button" onClick={() => setProfileTab("cart")}><span>⌑</span>Cart</button></>}
             </div>
             <div className="profile-drawer-section"><span>BROWSE</span><button type="button" onClick={() => { setProfileOpen(false); openLanding(); }}>⌂ <strong>Home</strong></button><button type="button" onClick={() => { setProfileOpen(false); openEvents(); }}>▦ <strong>Events</strong></button><button type="button" onClick={() => { setProfileOpen(false); openGuide(); }}>◎ <strong>How it works</strong></button></div>
-            {recentlyViewed && <div className="profile-drawer-section"><span>RECENTLY VIEWED</span><button type="button" className="profile-recent" onClick={() => { setProfileOpen(false); setSelectedEvent(recentlyViewed); }}>{recentlyViewed.posterUrl && <img src={recentlyViewed.posterUrl} alt="" />}<strong>{recentlyViewed.name}</strong></button></div>}
+            {recentlyViewed.length > 0 && (
+              <div className="profile-drawer-section">
+                <span>RECENTLY VIEWED</span>
+                {recentlyViewed.map((rv) => (
+                  <button
+                    key={rv.id}
+                    type="button"
+                    className="profile-recent"
+                    onClick={() => { setProfileOpen(false); setSelectedEvent(rv); }}
+                  >
+                    {rv.posterUrl && <img src={rv.posterUrl} alt="" />}
+                    <strong>{rv.name}</strong>
+                  </button>
+                ))}
+              </div>
+            )}
             <button type="button" className="profile-signout" onClick={() => { setProfileOpen(false); setSession(null); }}>Sign out →</button>
-          </> : profileTab === "profile" ? <div className="profile-panel"><h2>Your profile</h2><p>Signed in as <strong>{session.user.email}</strong></p><p>Account type: <strong>{session.user.role}</strong></p></div> : profileTab === "cart" ? <div className="profile-panel"><h2>Your cart</h2><p>Seats are selected and held during checkout. Start with an event to choose yours.</p><button className="primary-button" onClick={() => { setProfileOpen(false); openEvents(); }}>Browse events →</button></div> : <div className="profile-panel"><h2>{profileTab === "tickets" ? "Your tickets" : "Your orders"}</h2>{profileMessage && <p role="status">{profileMessage}</p>}{customerBookings.filter((booking) => profileTab === "orders" || booking.status === "confirmed").length ? customerBookings.filter((booking) => profileTab === "orders" || booking.status === "confirmed").map((booking) => <article className="profile-booking" key={booking.id}><span className="profile-booking-status">{booking.status.replace("_", " ")}</span><h3>{booking.eventName}</h3><p>{new Date(booking.startsAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</p><p>{booking.seats.map((seat) => `${seat.rowLabel}${seat.seatNumber}`).join(", ") || "No seats"}</p><strong>৳{formatPrice(booking.totalCents)}</strong>{profileTab === "orders" && ["held", "pending_payment", "confirmed"].includes(booking.status) && <button className="profile-cancel" disabled={profileBusy} onClick={() => void cancelCustomerBooking(booking.id)}>Cancel booking</button>}</article>) : <p>{profileTab === "tickets" ? "Confirmed tickets will appear here after checkout." : "Your booking history will appear here."}</p>}</div>}
+          </> : profileTab === "profile" ? (
+            <div className="profile-panel">
+              <h2>Your profile</h2>
+              <p>Signed in as <strong>{session.user.email}</strong></p>
+              <p>Account type: <strong>{session.user.role}</strong></p>
+            </div>
+          ) : profileTab === "cart" ? (
+            <div className="profile-panel">
+              <h2>Your cart</h2>
+              <p>Seats are selected and held during checkout. Start with an event to choose yours.</p>
+              <button className="primary-button" onClick={() => { setProfileOpen(false); openEvents(); }}>Browse events →</button>
+            </div>
+          ) : (
+            <div className="profile-panel">
+              <h2>{profileTab === "tickets" ? "Your tickets" : "Your orders"}</h2>
+              {profileMessage && <p role="status">{profileMessage}</p>}
+              {customerBookings.filter((booking) => profileTab === "orders" || booking.status === "confirmed").length ? (
+                customerBookings
+                  .filter((booking) => profileTab === "orders" || booking.status === "confirmed")
+                  .map((booking) => (
+                    <article className="profile-booking" key={booking.id}>
+                      <span className="profile-booking-status">{booking.status.replace("_", " ")}</span>
+                      <h3>{booking.eventName}</h3>
+                      <p>{new Date(booking.startsAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</p>
+                      <p>{booking.seats.map((seat) => `${seat.rowLabel}${seat.seatNumber}`).join(", ") || "No seats"}</p>
+                      <strong>৳{formatPrice(booking.totalCents)}</strong>
+                      {/* QR code + download for confirmed tickets */}
+                      {booking.status === "confirmed" && (
+                        <div className="qr-ticket-wrapper">
+                          <span className="section-kicker">Your Ticket QR</span>
+                          <pre className="qr-code-fallback" aria-label="QR code pattern">{generateQRPattern(`${booking.id}-${booking.eventName}`)}</pre>
+                          <div className="qr-ticket-info">
+                            {booking.seats.map((s) => `${s.rowLabel}${s.seatNumber}`).join(", ")} · ৳{formatPrice(booking.totalCents)}
+                          </div>
+                          <button
+                            className="ticket-download-btn"
+                            type="button"
+                            onClick={() => {
+                              const content = [
+                                "TICKETFLOW TICKET",
+                                "─".repeat(32),
+                                `Event:    ${booking.eventName}`,
+                                `Date:     ${new Date(booking.startsAt).toLocaleString()}`,
+                                `Seats:    ${booking.seats.map((s) => `${s.rowLabel}${s.seatNumber}`).join(", ")}`,
+                                `Total:    ৳${formatPrice(booking.totalCents)}`,
+                                `Booking:  ${booking.id}`,
+                                "─".repeat(32),
+                                generateQRPattern(booking.id),
+                              ].join("\n");
+                              const blob = new Blob([content], { type: "text/plain" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `ticket-${booking.id.slice(0, 8)}.txt`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }}
+                          >
+                            ⬇ Download ticket
+                          </button>
+                        </div>
+                      )}
+                      {profileTab === "orders" && ["held", "pending_payment", "confirmed"].includes(booking.status) && (
+                        <button className="profile-cancel" disabled={profileBusy} onClick={() => void cancelCustomerBooking(booking.id)}>Cancel booking</button>
+                      )}
+                    </article>
+                  ))
+              ) : (
+                <p>{profileTab === "tickets" ? "Confirmed tickets will appear here after checkout." : "Your booking history will appear here."}</p>
+              )}
+            </div>
+          )}
         </aside>
       </div>}
       {authOpen && (
@@ -2253,6 +2519,13 @@ export function App() {
             });
           }}
         />
+      )}
+      {/* Toast notification */}
+      {toast && (
+        <div className={`toast-banner${toast.type === "error" ? " error" : ""}`} role="status" aria-live="polite">
+          <span className="toast-icon">{toast.type === "error" ? "⚠" : "✓"}</span>
+          {toast.message}
+        </div>
       )}
     </div>
   );
