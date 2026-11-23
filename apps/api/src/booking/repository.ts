@@ -20,7 +20,7 @@ export class PgBookingRepository {
     try {
       await client.query('BEGIN');
       const event = await client.query<{ id: string; name: string; starts_at: Date; pricing_strategy: 'base' | 'early_bird' }>(
-        `SELECT id, name, starts_at, pricing_strategy FROM events WHERE id = $1 AND status = 'published' AND starts_at > now()`, [eventId],
+        `SELECT id, name, starts_at, pricing_strategy FROM events WHERE id = $1 AND status = 'published' AND ends_at > now()`, [eventId],
       );
       if (!event.rows[0]) throw new BookingError('EVENT_NOT_FOUND');
       const uniqueSeatIds = [...new Set(seatIds)].sort();

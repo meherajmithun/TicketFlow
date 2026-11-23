@@ -32,14 +32,18 @@ export type Event = {
   venue: Venue;
   name: string;
   description: string;
+  posterUrl: string;
+  highlights: string;
+  category: string;
   startsAt: string;
+  endsAt: string;
   pricingStrategy: PricingStrategy;
   status: EventStatus;
   categories: SeatCategory[];
   seats: EventSeat[];
 };
 
-export type EventSearch = { query?: string; city?: string; date?: string; past?: boolean; page: number; pageSize: number };
+export type EventSearch = { query?: string; city?: string; date?: string; past?: boolean; status?: 'all' | 'live' | 'upcoming' | 'ended'; category?: string; sort?: 'soonest' | 'latest' | 'ending' | 'name_asc' | 'name_desc'; page: number; pageSize: number };
 export type EventPage = { events: Event[]; total: number; page: number; pageSize: number; totalPages: number };
 
 export type CreateVenueInput = Omit<Venue, 'id' | 'organizerId'>;
@@ -49,7 +53,11 @@ export type CreateEventInput = {
   venueId: string;
   name: string;
   description: string;
+  posterUrl: string;
+  highlights: string;
+  category?: string;
   startsAt: string;
+  endsAt?: string;
   pricingStrategy: PricingStrategy;
   status: EventStatus;
   rows: Array<{ label: string; category: string }>;

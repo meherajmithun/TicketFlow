@@ -13,7 +13,15 @@ export const createEventSchema = z.object({
   venueId: uuid,
   name: z.string().trim().min(1).max(160),
   description: z.string().trim().max(5000).default(''),
+  posterUrl: z.union([
+    z.string().trim().url().max(2048).refine((value) => ['http:', 'https:'].includes(new URL(value).protocol), 'Poster URL must use HTTP or HTTPS'),
+    z.string().regex(/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/).max(2_800_000),
+    z.literal(''),
+  ]).default(''),
+  highlights: z.string().trim().max(3000).default(''),
+  category: z.enum(['Concert', 'Sports', 'Stand-up', 'Workshop', 'Festival', 'Conference', 'Exhibition', 'Competition', 'Fundraiser', 'Other']).default('Other'),
   startsAt: z.string().datetime({ offset: true }).refine((value) => new Date(value).getTime() > Date.now(), 'Event must be in the future'),
+  endsAt: z.string().datetime({ offset: true }).optional(),
   pricingStrategy: z.enum(['base', 'early_bird']).default('base'),
   status: z.enum(['draft', 'published']).default('draft'),
   seatMap: z.object({
@@ -30,6 +38,7 @@ export const createEventSchema = z.object({
   });
   const labels = input.seatMap.rows.map((row) => row.label.toLowerCase());
   if (new Set(labels).size !== labels.length) context.addIssue({ code: 'custom', path: ['seatMap', 'rows'], message: 'Row labels must be unique' });
+  if (input.endsAt && new Date(input.endsAt) <= new Date(input.startsAt)) context.addIssue({ code: 'custom', path: ['endsAt'], message: 'End time must be after the start time' });
 });
 
 export const eventStatusSchema = z.object({ status: z.enum(['published', 'cancelled']) }).strict();
@@ -39,7 +48,10 @@ export const eventSearchSchema = z.object({
   q: z.string().trim().max(120).optional(),
   city: z.string().trim().max(80).optional(),
   date: z.string().date().optional(),
-  past: z.coerce.boolean().default(false),
+  past: z.enum(['true', 'false']).transform((value) => value === 'true').default(false),
+  status: z.enum(['all', 'live', 'upcoming', 'ended']).optional(),
+  category: z.string().trim().max(80).optional(),
+  sort: z.enum(['soonest', 'latest', 'ending', 'name_asc', 'name_desc']).default('soonest'),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(9),
 }).strict();
