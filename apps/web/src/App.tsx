@@ -1,5 +1,14 @@
 import { useEffect, useState, useCallback, type FormEvent } from "react";
 
+// ─── Theme helpers ────────────────────────────────────────────
+function getInitialTheme(): "dark" | "light" {
+  try {
+    const saved = localStorage.getItem("ticketflow-theme") as "dark" | "light" | null;
+    if (saved === "dark" || saved === "light") return saved;
+  } catch { /* ignore */ }
+  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+
 type Role = "organizer" | "customer";
 type PublicUser = { id: string; email: string; role: Role };
 type Session = { token: string; user: PublicUser };
@@ -1671,6 +1680,15 @@ function OrganizerDashboard({ session }: { session: Session }) {
 }
 
 export function App() {
+  const [isDark, setIsDark] = useState<"dark" | "light">(getInitialTheme);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", isDark);
+    localStorage.setItem("ticketflow-theme", isDark);
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark((t) => (t === "dark" ? "light" : "dark"));
+
   const [query, setQuery] = useState("");
   const [publicEvents, setPublicEvents] = useState<BrowseEvent[]>([]);
   const [homeEvents, setHomeEvents] = useState<BrowseEvent[]>([]);
@@ -2043,9 +2061,26 @@ export function App() {
             <button type="button" className="profile-trigger" aria-expanded={profileOpen} aria-label="Open account menu" onClick={() => { setProfileTab("menu"); setProfileOpen(true); }}>
               <span className="profile-avatar">{session.user.email.slice(0, 2).toUpperCase()}</span><span>{session.user.email.split("@")[0]}</span><span aria-hidden="true">⌄</span>
             </button>
+            <button
+              type="button"
+              className="theme-toggle"
+              aria-label={isDark === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              onClick={toggleTheme}
+            >
+              {isDark === "dark" ? "☀" : "☾"}
+            </button>
           </div>
         ) : (
           <div className="account-actions">
+            <button
+              type="button"
+              className="theme-toggle"
+              aria-label={isDark === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              onClick={toggleTheme}
+              title={isDark === "dark" ? "Light mode" : "Dark mode"}
+            >
+              {isDark === "dark" ? "☀" : "☾"}
+            </button>
             <button className="text-button" onClick={() => openAuth("login")}>
               Sign in
             </button>
@@ -2340,8 +2375,9 @@ export function App() {
       </main>
       {!eventsOpen && !guideOpen && (
         <footer className="site-footer">
-          <span>Ticket<span className="brand-flow">Flow</span><span className="brand-period">.</span></span>
-          <span>Made for the moments that matter.</span>
+          <span className="footer-brand">Ticket<span className="brand-flow">Flow</span><span className="brand-period">.</span></span>
+          <span className="footer-tagline">Made for the moments that matter.</span>
+          <span className="footer-copy">&copy; {new Date().getFullYear()} TicketFlow. All rights reserved.</span>
         </footer>
       )}
       {profileOpen && session && <div className="profile-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setProfileOpen(false); }}>
