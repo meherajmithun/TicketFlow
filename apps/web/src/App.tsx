@@ -85,6 +85,20 @@ type BrowseEvent = {
 };
 type SeatRowPlan = { label: string; category: string };
 const eventCategories = ["Concert", "Sports", "Stand-up", "Workshop", "Festival", "Conference", "Exhibition", "Competition", "Fundraiser", "Other"];
+
+// ─── Category SVG icons ───────────────────────────────────────
+const categoryIcons: Record<string, string> = {
+  Concert: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
+  Sports: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93c4.68 4.68 9.37 4.68 14.14 0M4.93 19.07c4.68-4.68 9.37-4.68 14.14 0M2 12h20M12 2a15.3 15.3 0 0 1 4 10A15.3 15.3 0 0 1 12 22 15.3 15.3 0 0 1 8 12 15.3 15.3 0 0 1 12 2z"/></svg>`,
+  "Stand-up": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/><path d="M18.5 8.5A2.5 2.5 0 0 0 16 6h-8a2.5 2.5 0 0 0-2.5 2.5v5H8v9h8v-9h2.5V8.5z"/><path d="M8 11.5l-2 4.5M16 11.5l2 4.5"/></svg>`,
+  Workshop: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+  Festival: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+  Conference: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  Exhibition: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>`,
+  Competition: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>`,
+  Fundraiser: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+  Other: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>`,
+};
 type DiscoveryStatus = "all" | "live" | "upcoming" | "ended";
 type DiscoverySort = "soonest" | "latest" | "ending" | "name_asc" | "name_desc";
 function eventPhase(event: BrowseEvent): "Live" | "Upcoming" | "Ended" {
@@ -1734,8 +1748,6 @@ export function App() {
   });
   const [profileMessage, setProfileMessage] = useState("");
   const [profileBusy, setProfileBusy] = useState(false);
-  const [newsletterEmail, setNewsletterEmail] = useState("");
-  const [newsletterDone, setNewsletterDone] = useState(false);
   const [toast, setToast] = useState<{ message: string; type?: "error" } | null>(null);
 
   useEffect(() => {
@@ -2118,45 +2130,28 @@ export function App() {
                 </section>
                 <section className="home-categories" aria-labelledby="categories-title">
                   <h2 id="categories-title">Browse your way</h2>
-                  <div className="category-tiles">{eventCategories.map((category, index) => <button type="button" key={category} onClick={() => { setCategoryFilter(category); openEvents(); }}><span className="category-tile-art" aria-hidden="true">{["♫", "⚽", "✦", "✎", "✳", "◎", "▣", "★", "♡", "↗"][index]}</span><strong>{category}</strong><i aria-hidden="true">↗</i></button>)}</div>
+                  <div className="category-tiles">
+                    {eventCategories.map((category) => (
+                      <button
+                        type="button"
+                        key={category}
+                        onClick={() => { setCategoryFilter(category); openEvents(); }}
+                        className="category-tile-btn"
+                      >
+                        <span
+                          className="category-tile-art"
+                          aria-hidden="true"
+                          dangerouslySetInnerHTML={{ __html: categoryIcons[category] ?? categoryIcons.Other }}
+                        />
+                        <strong>{category}</strong>
+                        <i aria-hidden="true" className="category-tile-arrow">↗</i>
+                      </button>
+                    ))}
+                  </div>
                 </section>
                 <section className="home-sale" aria-labelledby="sale-title">
                   <div className="home-sale-heading"><h2 id="sale-title">On sale now</h2><button type="button" onClick={openEvents}>View all <span aria-hidden="true">→</span></button></div>
                   {homeEvents.length ? <div className="public-event-grid">{homeEvents.slice(0, 8).map((event) => <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onCity={filterByCity} />)}</div> : <p className="home-empty">New events will appear here when organizers publish them.</p>}
-                </section>
-                {/* Newsletter strip */}
-                <section className="newsletter-strip" aria-label="Stay in the loop">
-                  <div className="newsletter-copy">
-                    <span className="section-kicker">STAY IN THE LOOP</span>
-                    <h2>Never miss an event.</h2>
-                    <p>Get notified first when new events drop, early-bird deals go live, and your favourite artists announce shows.</p>
-                  </div>
-                  <div className="newsletter-action">
-                    {newsletterDone ? (
-                      <div className="newsletter-success">✓ You&apos;re on the list! We&apos;ll be in touch soon.</div>
-                    ) : (
-                      <form
-                        className="newsletter-form"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          if (newsletterEmail.trim()) {
-                            setNewsletterDone(true);
-                            showToast("✓ You're on the list!");
-                          }
-                        }}
-                      >
-                        <input
-                          type="email"
-                          placeholder="your@email.com"
-                          value={newsletterEmail}
-                          onChange={(e) => setNewsletterEmail(e.target.value)}
-                          required
-                          aria-label="Email address for newsletter"
-                        />
-                        <button className="newsletter-submit" type="submit">Notify me</button>
-                      </form>
-                    )}
-                  </div>
                 </section>
               </div>
             )}
@@ -2174,11 +2169,13 @@ export function App() {
                   onKeyDown={e => { if (e.key === "Escape") setSearchFocused(false); }}
                   onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setSearchFocused(false); }}
                 >
-                  <div className="discovery-main-filters">
-                    <div className="search-row discovery-query">
-                      <span className="search-icon" aria-hidden="true">⌕</span>
+                  {/* ── Row 1: Search + filter chips ── */}
+                  <div className="filter-bar">
+                    <div className="filter-search-wrap">
+                      <svg className="filter-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                       <input
                         id="event-search"
+                        className="filter-search-input"
                         aria-label="Search events or venues"
                         value={query}
                         onChange={(event) => {
@@ -2186,58 +2183,83 @@ export function App() {
                           setQuery(value);
                           setSearchFocused(Boolean(value.trim()));
                         }}
-                        placeholder="Search events or venues"
+                        placeholder="Search events, venues, cities…"
                       />
-                      <button type="submit" aria-label="Search events">⌕</button>
+                      {query && (
+                        <button type="button" className="filter-clear-x" aria-label="Clear search" onClick={() => { setQuery(""); setSearchFocused(false); }}>×</button>
+                      )}
                     </div>
-                    <label className="discovery-select"><span className="filter-dot" />
-                      <select aria-label="Event status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as DiscoveryStatus)}>
-                        <option value="all">All statuses</option><option value="live">Happening now</option><option value="upcoming">Upcoming</option><option value="ended">Ended</option>
-                      </select>
-                    </label>
-                    <label className="discovery-select"><span className="filter-dot" />
-                      <select aria-label="Event category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-                        <option>All categories</option>{eventCategories.map((category) => <option key={category}>{category}</option>)}
-                      </select>
-                    </label>
-                    <label className="discovery-select"><span className="filter-dot" />
-                      <select aria-label="Sort events" value={sortOrder} onChange={(event) => setSortOrder(event.target.value as DiscoverySort)}>
-                        <option value="soonest">Soonest first</option><option value="latest">Latest start first</option><option value="ending">Ending soonest</option><option value="name_asc">Alphabetical A–Z</option><option value="name_desc">Alphabetical Z–A</option>
-                      </select>
-                    </label>
+                    <div className="filter-chips">
+                      <label className="filter-chip">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <select aria-label="Event status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as DiscoveryStatus)}>
+                          <option value="all">All statuses</option>
+                          <option value="live">Happening now</option>
+                          <option value="upcoming">Upcoming</option>
+                          <option value="ended">Ended</option>
+                        </select>
+                        <svg className="chip-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                      </label>
+                      <label className="filter-chip">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                        <select aria-label="Event category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+                          <option>All categories</option>
+                          {eventCategories.map((category) => <option key={category}>{category}</option>)}
+                        </select>
+                        <svg className="chip-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                      </label>
+                      <label className="filter-chip">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                        <select aria-label="Sort events" value={sortOrder} onChange={(event) => setSortOrder(event.target.value as DiscoverySort)}>
+                          <option value="soonest">Soonest first</option>
+                          <option value="latest">Latest start</option>
+                          <option value="ending">Ending soon</option>
+                          <option value="name_asc">A → Z</option>
+                          <option value="name_desc">Z → A</option>
+                        </select>
+                        <svg className="chip-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                      </label>
+                    </div>
                   </div>
-                  <div className="search-filters">
-                    <label>
-                      City{" "}
+                  {/* ── Row 2: City + Date + Clear ── */}
+                  <div className="filter-row2">
+                    <label className="filter-inline-label">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                       <input
                         value={cityFilter}
                         onChange={(event) => setCityFilter(event.target.value)}
                         placeholder="Any city"
+                        aria-label="Filter by city"
                       />
                     </label>
-                    <label>
-                      Date{" "}
+                    <label className="filter-inline-label">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                       <input
                         type="date"
                         value={dateFilter}
                         onChange={(event) => setDateFilter(event.target.value)}
+                        aria-label="Filter by date"
                       />
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuery("");
-                        setCityFilter("");
-                        setDateFilter("");
-                        setStatusFilter("all");
-                        setCategoryFilter("All categories");
-                        setSortOrder("soonest");
-                        setSearchFocused(false);
-                        void loadPublicEvents({ page: 1, status: "all", category: "All categories", sort: "soonest" });
-                      }}
-                    >
-                      Clear filters
-                    </button>
+                    {(query || cityFilter || dateFilter || statusFilter !== "all" || categoryFilter !== "All categories") && (
+                      <button
+                        type="button"
+                        className="filter-clear-btn"
+                        onClick={() => {
+                          setQuery("");
+                          setCityFilter("");
+                          setDateFilter("");
+                          setStatusFilter("all");
+                          setCategoryFilter("All categories");
+                          setSortOrder("soonest");
+                          setSearchFocused(false);
+                          void loadPublicEvents({ page: 1, status: "all", category: "All categories", sort: "soonest" });
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        Clear filters
+                      </button>
+                    )}
                   </div>
                   {searchFocused && normalizedQuery && (
                     <div
@@ -2467,6 +2489,7 @@ export function App() {
                               a.download = `ticket-${booking.id.slice(0, 8)}.txt`;
                               a.click();
                               URL.revokeObjectURL(url);
+                              showToast("✓ Ticket downloaded!");
                             }}
                           >
                             ⬇ Download ticket
