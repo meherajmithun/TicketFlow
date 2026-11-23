@@ -675,7 +675,7 @@ h1, h2, h3 { font-family: 'Space Grotesk', system-ui, sans-serif; text-wrap: bal
 .event-actions select { background: transparent; border: 0; color: var(--text-secondary); font-size: 14px; padding: 10px; }
 .event-actions select option { background: var(--bg-panel); }
 .status-choice { background: var(--glass); border: 1px solid var(--border-strong); border-radius: 10px; display: flex; gap: 4px; padding: 4px; }
-.status-choice button { background: transparent; border: 0; border-radius: 7px; color: var(--text-muted); font-size: 12px; font-weight: 700; padding: 9px 12px; transition: all 0.2s; }
+.status-choice button { background: transparent; border: 0; border-radius: 7px; color: var(--text-muted); cursor: pointer; font-size: 12px; font-weight: 700; padding: 9px 12px; transition: all 0.2s; }
 .status-choice button.active { box-shadow: var(--shadow-sm); }
 .status-choice button.draft-choice.active { background: var(--warning-soft); border: 1px solid rgba(251,191,36,0.3); color: var(--warning); }
 .status-choice button.publish-choice.active { background: var(--success-soft); border: 1px solid rgba(52,211,153,0.3); color: var(--success); }
@@ -921,9 +921,62 @@ h1, h2, h3 { font-family: 'Space Grotesk', system-ui, sans-serif; text-wrap: bal
                       radial-gradient(ellipse at 20% 80%, rgba(244,114,182,0.2) 0%, transparent 50%),
                       linear-gradient(135deg, #ede9ff 0%, #f8f7ff 100%);
   --grad-card:        linear-gradient(145deg, rgba(255,255,255,0.9), rgba(240,235,255,0.6));
+
+  /* Status Colors for Light Mode (High Contrast & Readable) */
+  --success:          #059669;
+  --success-soft:     #d1fae5;
+  --warning:          #92400e;
+  --warning-soft:     #fef3c7;
+  --danger:           #dc2626;
+  --danger-soft:      #fee2e2;
 }
 
 /* Light mode overrides for specific components */
+:root[data-theme="light"] .status-choice button.draft-choice.active {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+}
+:root[data-theme="light"] .status-choice button.publish-choice.active {
+  background: #d1fae5;
+  border: 1px solid #10b981;
+  color: #065f46;
+}
+:root[data-theme="light"] .event-status.draft {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  color: #92400e;
+}
+:root[data-theme="light"] .event-status.published {
+  background: #d1fae5;
+  border: 1px solid #10b981;
+  color: #065f46;
+}
+:root[data-theme="light"] .studio-notice {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-left: 4px solid #d97706;
+  color: #92400e;
+}
+:root[data-theme="light"] .seat-status-dot.held {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #92400e;
+}
+:root[data-theme="light"] .picker-seat.held {
+  border-color: #d97706;
+  color: #92400e;
+}
+:root[data-theme="light"] .picker-seat.held small {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #92400e;
+}
+:root[data-theme="light"] .profile-booking-status.held {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
 :root[data-theme="light"] .site-header {
   background: rgba(248,247,255,0.92);
   border-bottom-color: rgba(100,80,200,0.12);
