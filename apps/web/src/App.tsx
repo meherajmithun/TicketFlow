@@ -21,7 +21,9 @@ type AppNotification = {
 };
 type CustomerBooking = { id: string; eventId: string; eventName: string; startsAt: string; status: "held" | "pending_payment" | "confirmed" | "expired" | "cancelled"; totalCents: number; seats: Array<{ id: string; rowLabel: string; seatNumber: number }> };
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+// In development Vite proxies /api → API server (no CORS, same origin).
+// In production set VITE_API_URL to the deployed API origin, e.g. https://api.ticketflow.app
+const API_URL = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, "") || "/api";
 
 async function authRequest(path: string, body: Record<string, string>) {
   const response = await fetch(`${API_URL}${path}`, {
