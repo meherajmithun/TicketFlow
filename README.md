@@ -25,15 +25,15 @@ In another terminal:
 npm run dev:web
 ```
 
-Create a local `ticketflow` database and set `DATABASE_URL` and a unique `AUTH_TOKEN_SECRET` of at least 32 characters in `.env` before running the migration. Open `http://localhost:5173`. The API health endpoint is `http://localhost:4000/health`.
+Create a local `ticketflow` database and set `DATABASE_URL` and a unique `AUTH_TOKEN_SECRET` of at least 32 characters in `.env` before running the migration. Set `ORGANIZER_EMAIL` and `ORGANIZER_PASSWORD` in the server environment to provision the organizer account on startup; the password must be at least 12 characters and is stored as a salted hash. Never commit the real credentials. Existing organizer credentials are not overwritten. Open `http://localhost:5173`. The API health endpoint is `http://localhost:4000/health`.
 
-The migration runner records applied SQL files in `schema_migrations`, so running `npm run db:migrate` again is safe. The initial schema is in `apps/api/db/001_initial.sql`.
+The migration runner records applied SQL files in `schema_migrations`, so running `npm run db:migrate` again is safe. Run it after pulling changes to apply the event details and discovery migrations (`002` and `003`).
 
 ## Authentication API
 
 | Route | Body or header | Result |
 | --- | --- | --- |
-| `POST /auth/register` | JSON: `email`, `password` (5–128 characters), `role` (`organizer` or `customer`) | `201` with a user and bearer token |
+| `POST /auth/register` | JSON: `email`, `password` (5–128 characters); optional `role` must be `customer` | `201` with a customer and bearer token. Organizer self-registration is rejected. |
 | `POST /auth/login` | JSON: `email`, `password` | User and bearer token |
 | `GET /auth/me` | `Authorization: Bearer <token>` | Authenticated user ID and role |
 
@@ -47,13 +47,13 @@ Organizer routes require an organizer bearer token. An organizer can only list a
 | `GET /venues` | List the authenticated organizer's venues |
 | `PATCH /venues/:venueId` | Edit an organizer-owned venue |
 | `DELETE /venues/:venueId` | Delete an unused organizer-owned venue |
-| `POST /events/organizer` | Create a draft or published event with venue, date-time, categories, and seat map |
+| `POST /events/organizer` | Create a draft or published event with venue, start/end times, event category, ticket categories, poster URL, and seat map |
 | `GET /events/organizer` | List the authenticated organizer's events |
 | `GET /events/organizer/:eventId` | Retrieve an owned event and its seats |
 | `PATCH /events/organizer/:eventId/status` | Publish or cancel an owned event |
 | `PATCH /events/organizer/:eventId` | Edit an owned event, including its schedule, pricing, categories, and seat map |
-| `GET /events` | Browse future published events with optional `q`, `city`, `date`, `page`, and `pageSize` filters |
-| `GET /events/:eventId` | View one future published event and its seats |
+| `GET /events` | Browse published events with optional `q`, `city`, `date`, `status` (`all`, `live`, `upcoming`, `ended`), `category`, `sort`, `page`, and `pageSize` filters |
+| `GET /events/:eventId` | View one published event and its seats; ended events cannot be booked |
 | `POST /bookings/holds` | Customer-only five-minute hold for selected seat IDs |
 | `GET /bookings` | List the authenticated customer's bookings and holds |
 | `POST /bookings/:bookingId/cancel` | Cancel an owned held/confirmed booking and calculate its refund |
@@ -64,6 +64,8 @@ Organizer routes require an organizer bearer token. An organizer can only list a
 | `POST /notifications/:notificationId/read` | Mark an in-app notification as read |
 
 Tokens expire after 12 hours. Passwords are stored as salted scrypt hashes. Organizer and customer routes use role guards, and organizer event operations enforce ownership. A booking reaches `confirmed` only after a successful mock payment provider call; there is no direct confirmation endpoint.
+
+Organizer event forms accept a public poster image URL or a JPG, PNG, or WebP upload under 2 MB, a description, and one highlight per line. Uploaded images are stored with the event as data URLs in PostgreSQL, so production image hosting is recommended for larger catalogs. Forms also accept an event category and optional end time; omitted end times default to three hours after the start. Public search, details, and seat holds never expose drafts. The customer account drawer shows confirmed tickets and booking history, including cancellation where permitted.
 
 ## Checks
 
