@@ -2531,7 +2531,7 @@ export function App() {
                   <input id="auth-email" name="email" type="email" autoComplete="email" required placeholder="you@example.com" />
                   <label htmlFor="auth-password">Password</label>
                   <input id="auth-password" name="password" type="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} minLength={5} required placeholder={authMode === "login" ? "Enter your password" : "At least 5 characters"} />
-                  {authMode === "register" && <p className="auth-customer-note">New accounts are for customers. Organizer access is provided by the site owner.</p>}
+
                   {authError && <p className="auth-error" role="alert">{authError}</p>}
                   <button className="auth-submit" disabled={authBusy}>{authBusy ? "Please wait…" : authMode === "login" ? "Sign in →" : "Create customer account →"}</button>
                 </form>
