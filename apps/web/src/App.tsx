@@ -10,6 +10,7 @@ type AppNotification = {
   readAt: string | null;
   createdAt: string;
 };
+type CustomerBooking = { id: string; eventId: string; eventName: string; startsAt: string; status: "held" | "pending_payment" | "confirmed" | "expired" | "cancelled"; totalCents: number; seats: Array<{ id: string; rowLabel: string; seatNumber: number }> };
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
@@ -34,7 +35,11 @@ type OrganizerEvent = {
   id: string;
   name: string;
   description: string;
+  posterUrl: string;
+  highlights: string;
+  category: string;
   startsAt: string;
+  endsAt: string;
   status: "draft" | "published" | "cancelled";
   pricingStrategy: "base" | "early_bird";
   venue: Venue;
@@ -59,12 +64,25 @@ type BrowseEvent = {
   id: string;
   name: string;
   description: string;
+  posterUrl: string;
+  highlights: string;
+  category: string;
+  status: "published";
   startsAt: string;
+  endsAt: string;
   venue: Venue;
   categories: Array<{ name: string; basePriceCents: number }>;
   seats: BrowseSeat[];
 };
 type SeatRowPlan = { label: string; category: string };
+const eventCategories = ["Concert", "Sports", "Stand-up", "Workshop", "Festival", "Conference", "Exhibition", "Competition", "Fundraiser", "Other"];
+type DiscoveryStatus = "all" | "live" | "upcoming" | "ended";
+type DiscoverySort = "soonest" | "latest" | "ending" | "name_asc" | "name_desc";
+function eventPhase(event: BrowseEvent): "Live" | "Upcoming" | "Ended" {
+  const now = Date.now();
+  if (Date.parse(event.endsAt) <= now) return "Ended";
+  return Date.parse(event.startsAt) <= now ? "Live" : "Upcoming";
+}
 
 function formatPrice(amount: number) {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(
@@ -130,6 +148,107 @@ function SeatPreview() {
         </span>
       </div>
     </div>
+  );
+}
+
+function EventDetailsModal({
+  event,
+  onClose,
+  onChooseSeats,
+}: {
+  event: BrowseEvent;
+  onClose: () => void;
+  onChooseSeats: () => void;
+}) {
+  const [posterFailed, setPosterFailed] = useState(false);
+  const availableSeats = event.seats.filter((seat) => seat.available).length;
+  const highlights = event.highlights
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return (
+    <div
+      className="modal-backdrop event-story-backdrop"
+      role="presentation"
+      onMouseDown={(mouseEvent) => {
+        if (mouseEvent.target === mouseEvent.currentTarget) onClose();
+      }}
+    >
+      <article
+        className="event-story-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="event-story-title"
+      >
+        <button className="modal-close" aria-label="Close event details" onClick={onClose}>×</button>
+        <div className={`event-story-poster ${event.posterUrl && !posterFailed ? "has-poster" : ""}`}>
+          {event.posterUrl && !posterFailed ? (
+            <img src={event.posterUrl} alt={`${event.name} poster`} onError={() => setPosterFailed(true)} />
+          ) : (
+            <div className="event-story-placeholder" aria-hidden="true">
+              <span>LIVE / {new Date(event.startsAt).getFullYear()}</span>
+              <strong>{event.name}</strong>
+              <i>↗</i>
+            </div>
+          )}
+          <time dateTime={event.startsAt}>
+            <strong>{new Date(event.startsAt).toLocaleDateString(undefined, { day: "2-digit" })}</strong>
+            <span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: "short" }).toUpperCase()}</span>
+          </time>
+        </div>
+        <div className="event-story-copy">
+          <span className="section-kicker">{event.category.toUpperCase()} · {eventPhase(event).toUpperCase()}</span>
+          <h2 id="event-story-title">{event.name}</h2>
+          <p className="event-story-venue">{event.venue.name} · {event.venue.city}</p>
+          <p className="event-story-time">
+            {new Date(event.startsAt).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" })} – {new Date(event.endsAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+          </p>
+          <section>
+            <h3>About this event</h3>
+            <p>{event.description || "The organizer has not added a full description yet."}</p>
+          </section>
+          {highlights.length > 0 && (
+            <section>
+              <h3>What you’ll experience</h3>
+              <ul>{highlights.map((highlight) => <li key={highlight}>{highlight}</li>)}</ul>
+            </section>
+          )}
+          <div className="event-story-facts">
+            <span><strong>{availableSeats}</strong> seats available</span>
+            <span><strong>{event.categories.length}</strong> ticket {event.categories.length === 1 ? "category" : "categories"}</span>
+            <span><strong>{formatPrice(Math.min(...event.categories.map((category) => category.basePriceCents)))}</strong> starting price</span>
+          </div>
+          {eventPhase(event) === "Ended" ? <p className="event-ended-note">This event has ended. Booking is closed.</p> : <button className="primary-button event-story-action" onClick={onChooseSeats}>Choose your seats <span aria-hidden="true">→</span></button>}
+        </div>
+      </article>
+    </div>
+  );
+}
+
+function PublicEventCard({ event, onOpen, onCity }: { event: BrowseEvent; onOpen: () => void; onCity: (city: string) => void }) {
+  const phase = eventPhase(event);
+  const price = Math.min(...event.categories.map((category) => category.basePriceCents));
+  return (
+    <article className="discovery-card">
+      <button className="discovery-poster" type="button" onClick={onOpen} aria-label={`View ${event.name}`}>
+        <span className="discovery-poster-fallback"><small>{event.category}</small><strong>{event.name}</strong></span>
+        {event.posterUrl && <img src={event.posterUrl} alt="" loading="lazy" onError={(imageEvent) => { imageEvent.currentTarget.hidden = true; }} />}
+        <span className="discovery-date"><small>{new Date(event.startsAt).toLocaleDateString(undefined, { month: "short", weekday: "short" })}</small><strong>{new Date(event.startsAt).toLocaleDateString(undefined, { day: "numeric" })}</strong></span>
+        <span className={`discovery-phase ${phase.toLowerCase()}`}>{phase === "Live" && <i />} {phase}</span>
+      </button>
+      <div className="discovery-card-copy">
+        <button className="discovery-card-title" type="button" onClick={onOpen}>{event.name}</button>
+        <div className="discovery-card-details">
+          <span>⌖ {event.venue.name} · <button type="button" onClick={() => onCity(event.venue.city)}>{event.venue.city}</button></span>
+          <span>◷ {new Date(event.startsAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
+        </div>
+        <div className="discovery-card-bottom">
+          <span>{price === 0 ? <>Admission <strong>Free</strong></> : <>Starts from <strong>৳{formatPrice(price)}</strong></>}</span>
+          <button type="button" onClick={onOpen}>{phase === "Ended" ? "View event" : "Book now"} <span aria-hidden="true">→</span></button>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -425,11 +544,11 @@ function BookingModal({
                 Your selection
               </span>
               <span>
-                <i className="seat-status-dot held" />
+                <i className="seat-status-dot held" aria-hidden="true">H</i>
                 Held temporarily
               </span>
               <span>
-                <i className="seat-status-dot booked" />
+                <i className="seat-status-dot booked" aria-hidden="true">×</i>
                 Booked
               </span>
             </div>
@@ -454,7 +573,7 @@ function BookingModal({
                       {seats.map((seat) => (
                         <button
                           type="button"
-                          aria-label={`Row ${row} ${seat.categoryName} seat ${seat.seatNumber}, ${formatPrice(seat.basePriceCents)} per seat, ${seat.status}`}
+                          aria-label={`Row ${row} ${seat.categoryName} seat ${seat.seatNumber}, ${formatPrice(seat.basePriceCents)} per seat, ${seat.status === "held" ? "held temporarily" : seat.status}`}
                           title={seat.status === "available" ? "Available" : seat.status === "held" ? "Held temporarily" : "Booked"}
                           className={`picker-seat ${seat.status} ${seat.status === "available" ? "" : "unavailable"} ${selected.includes(seat.id) ? "chosen" : ""}`}
                           disabled={seat.status !== "available"}
@@ -469,7 +588,7 @@ function BookingModal({
                         >
                           <span>{seat.seatNumber}</span>
                           {seat.status !== "available" && (
-                            <small aria-hidden="true">{seat.status === "booked" ? "×" : "!"}</small>
+                            <small aria-hidden="true">{seat.status === "booked" ? "×" : "H"}</small>
                           )}
                         </button>
                       ))}
@@ -542,8 +661,12 @@ function OrganizerDashboard({ session }: { session: Session }) {
   const [eventForm, setEventForm] = useState({
     name: "",
     venueId: "",
+    category: "Other",
     startsAt: "",
+    endsAt: "",
     description: "",
+    posterUrl: "",
+    highlights: "",
     strategy: "base",
     status: "draft",
   });
@@ -557,7 +680,7 @@ function OrganizerDashboard({ session }: { session: Session }) {
   ]);
   const [seatsPerRow, setSeatsPerRow] = useState("12");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [activePanel, setActivePanel] = useState<"create" | "venues" | "running" | "delivered">("create");
+  const [activePanel, setActivePanel] = useState<"create" | "venues" | "drafts" | "running" | "delivered">("create");
   const [editingVenueId, setEditingVenueId] = useState<string | null>(null);
 
   async function loadDashboard() {
@@ -632,7 +755,11 @@ function OrganizerDashboard({ session }: { session: Session }) {
         venueId: eventForm.venueId,
         name: eventForm.name,
         description: eventForm.description,
+        posterUrl: eventForm.posterUrl,
+        highlights: eventForm.highlights,
+        category: eventForm.category,
         startsAt: new Date(eventForm.startsAt).toISOString(),
+        ...(eventForm.endsAt ? { endsAt: new Date(eventForm.endsAt).toISOString() } : {}),
         pricingStrategy: eventForm.strategy,
         status: eventForm.status,
         seatMap: { rows, seatsPerRow: Number(seatsPerRow) },
@@ -652,7 +779,11 @@ function OrganizerDashboard({ session }: { session: Session }) {
         ...current,
         name: "",
         description: "",
+        posterUrl: "",
+        highlights: "",
+        category: "Other",
         startsAt: "",
+        endsAt: "",
         status: "draft",
       }));
       await loadDashboard();
@@ -680,8 +811,12 @@ function OrganizerDashboard({ session }: { session: Session }) {
     setEventForm({
       name: event.name,
       venueId: event.venue.id,
+      category: event.category,
       startsAt: localDate,
+      endsAt: new Date(Date.parse(event.endsAt) - new Date(event.endsAt).getTimezoneOffset() * 60000).toISOString().slice(0, 16),
       description: event.description,
+      posterUrl: event.posterUrl,
+      highlights: event.highlights,
       strategy: event.pricingStrategy,
       status: event.status === "published" ? "published" : "draft",
     });
@@ -787,65 +922,15 @@ function OrganizerDashboard({ session }: { session: Session }) {
       <nav className="studio-nav" aria-label="Organizer workspace">
         <button className={activePanel === "create" ? "active" : ""} onClick={() => setActivePanel("create")}>Create event</button>
         <button className={activePanel === "venues" ? "active" : ""} onClick={() => setActivePanel("venues")}>Venues <span>{venues.length}</span></button>
-        <button className={activePanel === "running" ? "active" : ""} onClick={() => setActivePanel("running")}>Running events <span>{events.filter((event) => event.status === "published" && new Date(event.startsAt) > new Date()).length}</span></button>
-        <button className={activePanel === "delivered" ? "active" : ""} onClick={() => setActivePanel("delivered")}>Delivered events <span>{events.filter((event) => new Date(event.startsAt) <= new Date()).length}</span></button>
+        <button className={activePanel === "drafts" ? "active" : ""} onClick={() => setActivePanel("drafts")}>Drafts <span>{events.filter((event) => event.status === "draft").length}</span></button>
+        <button className={activePanel === "running" ? "active" : ""} onClick={() => setActivePanel("running")}>Running events <span>{events.filter((event) => event.status === "published" && new Date(event.endsAt) > new Date()).length}</span></button>
+        <button className={activePanel === "delivered" ? "active" : ""} onClick={() => setActivePanel("delivered")}>Delivered events <span>{events.filter((event) => event.status === "published" && new Date(event.endsAt) <= new Date()).length}</span></button>
       </nav>
       {activePanel !== "create" && <section className="workspace-panel">
-        <div className="workspace-panel-heading"><div><span className="section-kicker">{activePanel === "venues" ? "YOUR PLACES" : activePanel === "running" ? "LIVE PROGRAMME" : "DELIVERED PROGRAMME"}</span><h2>{activePanel === "venues" ? "Venues" : activePanel === "running" ? "Running events" : "Delivered events"}</h2></div><span className="studio-rule" /></div>
-        {activePanel === "venues" ? <div className="venue-management"><div className="venue-management-list">{venues.map((venue) => <article className="managed-venue" key={venue.id}><div><strong>{venue.name}</strong><span>{venue.city} · {venue.address}</span></div><div><button className="edit-button" onClick={() => editVenue(venue)}>Edit</button><button className="danger-button" disabled={busy} onClick={() => void deleteVenue(venue)}>Delete</button></div></article>)}</div><form className="venue-form venue-management-form" onSubmit={createVenue}><span className="form-label">{editingVenueId ? "EDIT VENUE" : "ADD A VENUE"}</span><input required placeholder="Venue name" value={venueForm.name} onChange={(event) => setVenueForm({ ...venueForm, name: event.target.value })} /><input required placeholder="City" value={venueForm.city} onChange={(event) => setVenueForm({ ...venueForm, city: event.target.value })} /><input required placeholder="Address" value={venueForm.address} onChange={(event) => setVenueForm({ ...venueForm, address: event.target.value })} /><button className="outline-button" disabled={busy}>{editingVenueId ? "Save changes" : "Add venue"} <span>+</span></button></form></div> : <div className="managed-event-list">{events.filter((event) => activePanel === "running" ? event.status === "published" && new Date(event.startsAt) > new Date() : new Date(event.startsAt) <= new Date()).map((event) => <article className="managed-event" key={event.id}><div className="event-date"><strong>{new Date(event.startsAt).toLocaleDateString(undefined, { day: "2-digit" })}</strong><span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: "short" }).toUpperCase()}</span></div><div><span className={`event-status ${new Date(event.startsAt) <= new Date() ? "past" : event.status}`}>{new Date(event.startsAt) <= new Date() ? "delivered" : event.status}</span><h3>{event.name}</h3><p>{event.venue.name} · {event.venue.city}</p></div><div className="managed-event-stats"><strong>{event.seats.filter((seat) => seat.available).length}</strong><span>AVAILABLE / {event.seats.length}</span><button className="edit-button" onClick={() => { editEvent(event); setActivePanel("create"); }}>Manage event</button></div></article>)}</div>}
+        <div className="workspace-panel-heading"><div><span className="section-kicker">{activePanel === "venues" ? "YOUR PLACES" : activePanel === "drafts" ? "PRIVATE WORKSPACE" : activePanel === "running" ? "LIVE PROGRAMME" : "DELIVERED PROGRAMME"}</span><h2>{activePanel === "venues" ? "Venues" : activePanel === "drafts" ? "Draft events" : activePanel === "running" ? "Running events" : "Delivered events"}</h2>{activePanel === "drafts" && <p>Only you can see these events. Publish one when it is ready for customers.</p>}</div><span className="studio-rule" /></div>
+        {activePanel === "venues" ? <div className="venue-management"><div className="venue-management-list">{venues.map((venue) => <article className="managed-venue" key={venue.id}><div><strong>{venue.name}</strong><span>{venue.city} · {venue.address}</span></div><div><button className="edit-button" onClick={() => editVenue(venue)}>Edit</button><button className="danger-button" disabled={busy} onClick={() => void deleteVenue(venue)}>Delete</button></div></article>)}</div><form className="venue-form venue-management-form" onSubmit={createVenue}><span className="form-label">{editingVenueId ? "EDIT VENUE" : "ADD A VENUE"}</span><input required placeholder="Venue name" value={venueForm.name} onChange={(event) => setVenueForm({ ...venueForm, name: event.target.value })} /><input required placeholder="City" value={venueForm.city} onChange={(event) => setVenueForm({ ...venueForm, city: event.target.value })} /><input required placeholder="Address" value={venueForm.address} onChange={(event) => setVenueForm({ ...venueForm, address: event.target.value })} /><button className="outline-button" disabled={busy}>{editingVenueId ? "Save changes" : "Add venue"} <span>+</span></button></form></div> : <div className="managed-event-list">{events.filter((event) => activePanel === "drafts" ? event.status === "draft" : activePanel === "running" ? event.status === "published" && new Date(event.endsAt) > new Date() : event.status === "published" && new Date(event.endsAt) <= new Date()).map((event) => <article className="managed-event" key={event.id}><div className="event-date"><strong>{new Date(event.startsAt).toLocaleDateString(undefined, { day: "2-digit" })}</strong><span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: "short" }).toUpperCase()}</span></div><div><span className={`event-status ${activePanel === "delivered" ? "past" : event.status}`}>{activePanel === "delivered" ? "delivered" : event.status}</span><h3>{event.name}</h3><p>{event.venue.name} · {event.venue.city}</p></div><div className="managed-event-stats"><strong>{event.seats.filter((seat) => seat.available).length}</strong><span>AVAILABLE / {event.seats.length}</span><button className="edit-button" onClick={() => { editEvent(event); setActivePanel("create"); }}>Manage event</button>{activePanel === "drafts" && <button className="publish-button" disabled={busy} onClick={() => void publishEvent(event.id)}>Publish</button>}</div></article>)}</div>}
       </section>}
       <div className={`studio-grid ${activePanel !== "create" ? "studio-grid-hidden" : ""}`}>
-        <aside className="studio-sidebar">
-          <div className="sidebar-label">
-            YOUR VENUES <span>{venues.length.toString().padStart(2, "0")}</span>
-          </div>
-          {venues.length === 0 ? (
-            <p className="sidebar-empty">
-              No venues yet.
-              <br />
-              Start with the room where it happens.
-            </p>
-          ) : (
-            venues.map((venue) => (
-              <div className="venue-card" key={venue.id}>
-                <strong>{venue.name}</strong>
-                <span>
-                  {venue.city} · {venue.address}
-                </span>
-              </div>
-            ))
-          )}
-          <form className="venue-form" onSubmit={createVenue}>
-            <span className="form-label">ADD A VENUE</span>
-            <input
-              required
-              placeholder="Venue name"
-              value={venueForm.name}
-              onChange={(event) =>
-                setVenueForm({ ...venueForm, name: event.target.value })
-              }
-            />
-            <input
-              required
-              placeholder="City"
-              value={venueForm.city}
-              onChange={(event) =>
-                setVenueForm({ ...venueForm, city: event.target.value })
-              }
-            />
-            <input
-              required
-              placeholder="Address"
-              value={venueForm.address}
-              onChange={(event) =>
-                setVenueForm({ ...venueForm, address: event.target.value })
-              }
-            />
-            <button className="outline-button" disabled={busy}>
-              Save venue <span>+</span>
-            </button>
-          </form>
-        </aside>
         <section className="studio-content">
           <div className="studio-section-heading">
             <div>
@@ -917,14 +1002,27 @@ function OrganizerDashboard({ session }: { session: Session }) {
                 />
               </div>
             </div>
+            <div className="form-row">
+              <div className="form-field">
+                <label htmlFor="event-category">Event category</label>
+                <select id="event-category" disabled={!venues.length} value={eventForm.category} onChange={(event) => setEventForm({ ...eventForm, category: event.target.value })}>
+                  {eventCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
+              </div>
+              <div className="form-field">
+                <label htmlFor="event-end">End date & time <span>optional</span></label>
+                <input id="event-end" type="datetime-local" disabled={!venues.length} min={eventForm.startsAt || undefined} value={eventForm.endsAt} onChange={(event) => setEventForm({ ...eventForm, endsAt: event.target.value })} />
+                <small className="field-hint">If blank, the event lasts three hours.</small>
+              </div>
+            </div>
             <div className="form-field form-field-wide">
               <label htmlFor="event-description">
-                Short description <span>optional</span>
+                Event description <span>optional</span>
               </label>
               <textarea
                 id="event-description"
                 disabled={!venues.length}
-                placeholder="What should guests know?"
+                placeholder="Tell guests what the event is about, who it is for, and why they should attend."
                 value={eventForm.description}
                 onChange={(event) =>
                   setEventForm({
@@ -934,6 +1032,67 @@ function OrganizerDashboard({ session }: { session: Session }) {
                 }
               />
             </div>
+            <div className="form-row event-media-fields">
+              <div className="form-field">
+                <label htmlFor="event-poster">
+                  Event poster <span>optional</span>
+                </label>
+                <input
+                  id="event-poster-file"
+                  className="poster-file-input"
+                  type="file"
+                  aria-label="Upload event poster"
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={!venues.length}
+                  onChange={(changeEvent) => {
+                    const file = changeEvent.target.files?.[0];
+                    if (!file) return;
+                    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 2_000_000) {
+                      setError("Use a JPG, PNG, or WebP poster under 2 MB.");
+                      changeEvent.target.value = "";
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = () => { setEventForm((current) => ({ ...current, posterUrl: String(reader.result) })); setError(""); };
+                    reader.onerror = () => setError("Could not read that poster image.");
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                <small className="field-hint">Upload a JPG, PNG, or WebP under 2 MB, or paste a public image URL.</small>
+                <input
+                  id="event-poster"
+                  type="url"
+                  disabled={!venues.length}
+                  placeholder="https://example.com/event-poster.jpg"
+                  value={eventForm.posterUrl.startsWith("data:") ? "" : eventForm.posterUrl}
+                  onChange={(event) =>
+                    setEventForm({ ...eventForm, posterUrl: event.target.value })
+                  }
+                />
+              </div>
+              <div className="form-field">
+                <label htmlFor="event-highlights">
+                  Learning and highlights <span>optional</span>
+                </label>
+                <textarea
+                  id="event-highlights"
+                  disabled={!venues.length}
+                  placeholder={"Meet startup founders\nLearn practical fundraising lessons\nBuild new connections"}
+                  value={eventForm.highlights}
+                  onChange={(event) =>
+                    setEventForm({ ...eventForm, highlights: event.target.value })
+                  }
+                />
+                <small className="field-hint">Add one attendee takeaway per line.</small>
+              </div>
+            </div>
+            {eventForm.posterUrl && (
+              <div className="poster-preview">
+                <span className="form-label">POSTER PREVIEW</span>
+                <img src={eventForm.posterUrl} alt="Event poster preview" />
+                <button type="button" className="edit-button" onClick={() => setEventForm({ ...eventForm, posterUrl: "" })}>Remove poster</button>
+              </div>
+            )}
             <div className="category-builder legacy-category-builder">
               <div className="builder-heading">
                 <div>
@@ -1395,15 +1554,24 @@ function OrganizerDashboard({ session }: { session: Session }) {
 export function App() {
   const [query, setQuery] = useState("");
   const [publicEvents, setPublicEvents] = useState<BrowseEvent[]>([]);
-  const [pastEvents, setPastEvents] = useState<BrowseEvent[]>([]);
+  const [homeEvents, setHomeEvents] = useState<BrowseEvent[]>([]);
+  const [featuredIndex, setFeaturedIndex] = useState(0);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventTotal, setEventTotal] = useState(0);
   const [eventsOpen, setEventsOpen] = useState(
     () => window.location.hash === "#events",
   );
+  const [guideOpen, setGuideOpen] = useState(
+    () => window.location.hash === "#how-it-works",
+  );
   const [searchFocused, setSearchFocused] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<BrowseEvent | null>(null);
+  const [bookingEvent, setBookingEvent] = useState<BrowseEvent | null>(null);
   const [cityFilter, setCityFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<DiscoveryStatus>("all");
+  const [categoryFilter, setCategoryFilter] = useState("All categories");
+  const [sortOrder, setSortOrder] = useState<DiscoverySort>("soonest");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [session, setSession] = useState<Session | null>(() => {
@@ -1416,6 +1584,12 @@ export function App() {
   const [authBusy, setAuthBusy] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileTab, setProfileTab] = useState<"menu" | "profile" | "tickets" | "orders" | "cart">("menu");
+  const [customerBookings, setCustomerBookings] = useState<CustomerBooking[]>([]);
+  const [recentlyViewed, setRecentlyViewed] = useState<BrowseEvent | null>(null);
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileBusy, setProfileBusy] = useState(false);
 
   useEffect(() => {
     if (session)
@@ -1436,9 +1610,17 @@ export function App() {
       .catch(() => setNotifications([]));
   }, [session]);
 
+  useEffect(() => { if (selectedEvent) setRecentlyViewed(selectedEvent); }, [selectedEvent]);
   useEffect(() => {
-    const handleHistoryChange = () =>
+    if (!profileOpen || !session || session.user.role !== "customer" || (profileTab !== "tickets" && profileTab !== "orders")) return;
+    void apiRequest<{ bookings: CustomerBooking[] }>("/bookings", session.token).then((payload) => setCustomerBookings(payload.bookings)).catch(() => setCustomerBookings([]));
+  }, [profileOpen, profileTab, session]);
+
+  useEffect(() => {
+    const handleHistoryChange = () => {
       setEventsOpen(window.location.hash === "#events");
+      setGuideOpen(window.location.hash === "#how-it-works");
+    };
     window.addEventListener("popstate", handleHistoryChange);
     window.addEventListener("hashchange", handleHistoryChange);
     return () => {
@@ -1461,37 +1643,46 @@ export function App() {
     );
   }
 
+  async function cancelCustomerBooking(bookingId: string) {
+    if (!session || !window.confirm("Cancel this booking? The refund rule shown in How it works will apply.")) return;
+    setProfileBusy(true);
+    setProfileMessage("");
+    try {
+      const result = await apiRequest<{ cancellation: { refundCents: number } }>(`/bookings/${bookingId}/cancel`, session.token, { method: "POST" });
+      setProfileMessage(result.cancellation.refundCents ? `Booking cancelled. Mock refund: ৳${formatPrice(result.cancellation.refundCents)}.` : "Booking cancelled. No refund applies.");
+      const payload = await apiRequest<{ bookings: CustomerBooking[] }>("/bookings", session.token);
+      setCustomerBookings(payload.bookings);
+      void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, page });
+    } catch (error) {
+      setProfileMessage(error instanceof Error ? error.message : "Could not cancel booking");
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
   async function loadPublicEvents(
-    filters: { q?: string; city?: string; date?: string; page?: number } = {},
+    filters: { q?: string; city?: string; date?: string; status?: DiscoveryStatus; category?: string; sort?: DiscoverySort; page?: number } = {},
   ) {
     setEventsLoading(true);
     const params = new URLSearchParams({
       page: String(filters.page ?? 1),
-      pageSize: "6",
+      pageSize: "16",
     });
     if (filters.q) params.set("q", filters.q);
     if (filters.city) params.set("city", filters.city);
     if (filters.date) params.set("date", filters.date);
-    const pastParams = new URLSearchParams(params);
-    pastParams.set("past", "true");
-    await Promise.all([
-      publicRequest<{
-        events: BrowseEvent[];
-        totalPages: number;
-        page: number;
-      }>(`/events?${params.toString()}`),
-      publicRequest<{ events: BrowseEvent[] }>(
-        `/events?${pastParams.toString()}`,
-      ),
-    ])
-      .then(([upcomingPayload, pastPayload]) => {
-        setPublicEvents(upcomingPayload.events);
-        setPastEvents(pastPayload.events);
-        setTotalPages(upcomingPayload.totalPages);
-        setPage(upcomingPayload.page);
+    params.set("status", filters.status ?? statusFilter);
+    params.set("category", filters.category ?? categoryFilter);
+    params.set("sort", filters.sort ?? sortOrder);
+    await publicRequest<{ events: BrowseEvent[]; total: number; totalPages: number; page: number }>(`/events?${params.toString()}`)
+      .then((payload) => {
+        setPublicEvents(payload.events);
+        setEventTotal(payload.total);
+        setTotalPages(payload.totalPages);
+        setPage(payload.page);
         setSelectedEvent((current) =>
           current
-            ? ([...upcomingPayload.events, ...pastPayload.events].find(
+            ? (payload.events.find(
                 (event) => event.id === current.id,
               ) ?? current)
             : current,
@@ -1499,13 +1690,22 @@ export function App() {
       })
       .catch(() => {
         setPublicEvents([]);
-        setPastEvents([]);
+        setEventTotal(0);
       })
       .finally(() => setEventsLoading(false));
   }
 
   useEffect(() => {
-    void loadPublicEvents();
+    void loadPublicEvents({ q: query.trim(), city: cityFilter.trim(), date: dateFilter, status: statusFilter, category: categoryFilter, sort: sortOrder, page: 1 });
+  }, [statusFilter, categoryFilter, sortOrder]);
+
+  useEffect(() => {
+    void Promise.all([
+      publicRequest<{ events: BrowseEvent[] }>("/events?status=live&pageSize=4"),
+      publicRequest<{ events: BrowseEvent[] }>("/events?status=upcoming&pageSize=8"),
+    ])
+      .then(([live, upcoming]) => setHomeEvents([...live.events, ...upcoming.events].slice(0, 8)))
+      .catch(() => setHomeEvents([]));
   }, []);
 
   function openAuth(mode: "login" | "register") {
@@ -1516,6 +1716,7 @@ export function App() {
 
   function openEvents() {
     setEventsOpen(true);
+    setGuideOpen(false);
     if (window.location.hash !== "#events")
       window.history.pushState({ view: "events" }, "", "#events");
     window.setTimeout(
@@ -1529,8 +1730,17 @@ export function App() {
 
   function openLanding() {
     setEventsOpen(false);
+    setGuideOpen(false);
     if (window.location.hash)
       window.history.pushState({ view: "landing" }, "", "#top");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openGuide() {
+    setEventsOpen(false);
+    setGuideOpen(true);
+    if (window.location.hash !== "#how-it-works")
+      window.history.pushState({ view: "guide" }, "", "#how-it-works");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -1545,9 +1755,7 @@ export function App() {
         {
           email: String(form.get("email") ?? ""),
           password: String(form.get("password") ?? ""),
-          ...(authMode === "register"
-            ? { role: String(form.get("role") ?? "customer") }
-            : {}),
+          ...(authMode === "register" ? { role: "customer" } : {}),
         },
       );
       setSession(sessionResult);
@@ -1585,14 +1793,8 @@ export function App() {
 
   const normalizedQuery = query.trim().toLowerCase();
   const normalizedCity = cityFilter.trim().toLowerCase();
-  const matchingEvents = publicEvents.filter((event) =>
-    `${event.name} ${event.venue.city} ${event.venue.name}`
-      .toLowerCase()
-      .includes(normalizedQuery),
-  );
-  const suggestedEvents = normalizedQuery ? matchingEvents : publicEvents;
   const hasActiveFilters = Boolean(
-    normalizedQuery || normalizedCity || dateFilter,
+    normalizedQuery || normalizedCity || dateFilter || statusFilter !== "all" || categoryFilter !== "All categories",
   );
   const matchesEventFilters = (event: BrowseEvent) => {
     const searchableText =
@@ -1607,8 +1809,22 @@ export function App() {
       new Date(event.startsAt).toISOString().slice(0, 10) === dateFilter;
     return matchesQuery && matchesCity && matchesDate;
   };
-  const visibleEvents = publicEvents.filter(matchesEventFilters);
-  const visiblePastEvents = pastEvents.filter(matchesEventFilters);
+  const visibleEvents = publicEvents.filter(
+    (event) => event.status === "published" && matchesEventFilters(event),
+  );
+  function suggestionRank(event: BrowseEvent) {
+    const title = event.name.toLowerCase();
+    if (title === normalizedQuery) return 0;
+    if (title.startsWith(normalizedQuery)) return 1;
+    if (title.split(/[^\p{L}\p{N}]+/u).some(word => word.startsWith(normalizedQuery))) return 2;
+    if ([event.venue.city, event.venue.name].some(field => field.toLowerCase().startsWith(normalizedQuery))) return 3;
+    return normalizedQuery.length >= 3 && title.includes(normalizedQuery) ? 4 : Infinity;
+  }
+  const suggestedEvents = visibleEvents.map(event => ({ event, rank: suggestionRank(event) }))
+    .filter(match => Number.isFinite(match.rank))
+    .sort((a, b) => a.rank - b.rank || Date.parse(a.event.startsAt) - Date.parse(b.event.startsAt))
+    .slice(0, 5).map(match => match.event);
+  const featuredEvent = homeEvents.length ? homeEvents[featuredIndex % homeEvents.length] : null;
 
   return (
     <div className="site-shell">
@@ -1628,28 +1844,22 @@ export function App() {
             <span />
             <span />
           </span>
-          <span>
-            ticketflow<span className="brand-period">.</span>
-          </span>
+          <span>Ticket<span className="brand-flow">Flow</span><span className="brand-period">.</span></span>
         </a>
         <nav aria-label="Main navigation">
           {session?.user.role === "organizer" ? (
             <a href="#studio">Studio</a>
           ) : (
             <>
-              <button type="button" className="nav-link" onClick={openEvents}>
+              <button type="button" className={`nav-link explore-nav ${eventsOpen ? "active" : ""}`} onClick={openEvents}>
                 Explore events
               </button>
-              <a href="#how-it-works">How it works</a>
+              <button type="button" className={`nav-link guide-nav ${guideOpen ? "active" : ""}`} onClick={openGuide}>How it works</button>
             </>
           )}
         </nav>
         {session ? (
           <div className="account-menu">
-            <span className="account-greeting">
-              Hi, {session.user.email.split("@")[0]}
-            </span>
-            <span className="role-pill">{session.user.role}</span>
             {session.user.role === "customer" && (
               <div className="notification-wrap">
                 <button
@@ -1687,8 +1897,8 @@ export function App() {
                 )}
               </div>
             )}
-            <button className="text-button" onClick={() => setSession(null)}>
-              Sign out
+            <button type="button" className="profile-trigger" aria-expanded={profileOpen} aria-label="Open account menu" onClick={() => { setProfileTab("menu"); setProfileOpen(true); }}>
+              <span className="profile-avatar">{session.user.email.slice(0, 2).toUpperCase()}</span><span>{session.user.email.split("@")[0]}</span><span aria-hidden="true">⌄</span>
             </button>
           </div>
         ) : (
@@ -1711,38 +1921,29 @@ export function App() {
           <OrganizerDashboard session={session} />
         ) : (
           <>
-            {!eventsOpen && (
-              <section className="hero" aria-labelledby="hero-title">
-                <div className="hero-copy">
-                  <div className="eyebrow">
-                    <span className="eyebrow-line" /> A BETTER WAY TO BE THERE
+            {!eventsOpen && !guideOpen && (
+              <div className="home-discovery">
+                <section className="featured-event" aria-label="Featured event">
+                  {featuredEvent?.posterUrl && <img src={featuredEvent.posterUrl} alt="" onError={(imageEvent) => { imageEvent.currentTarget.hidden = true; }} />}
+                  <div className="featured-fallback-art" aria-hidden="true"><SeatPreview /></div>
+                  <div className="featured-shade" />
+                  <div className="featured-copy">
+                    <span className="section-kicker">YOUR NEXT MOMENT STARTS HERE</span>
+                    <h1>{featuredEvent?.name ?? "Find your place in the moment."}</h1>
+                    <p>{featuredEvent ? `${featuredEvent.venue.name} · ${featuredEvent.venue.city} · ${new Date(featuredEvent.startsAt).toLocaleDateString(undefined, { dateStyle: "medium" })}` : "Discover events, pick your spot, and keep every ticket in one place."}</p>
+                    <button className="hero-cta" onClick={featuredEvent ? () => setSelectedEvent(featuredEvent) : openEvents}>{featuredEvent ? "View event" : "Explore events"} <span aria-hidden="true">↗</span></button>
                   </div>
-                  <h1 id="hero-title">
-                    Find your place
-                    <br />
-                    in the <em>moment.</em>
-                  </h1>
-                  <p>
-                    Good nights start with a great seat. Discover events, pick
-                    your spot, and keep every ticket in one place.
-                  </p>
-                  <button
-                    type="button"
-                    className="hero-cta"
-                    onClick={openEvents}
-                  >
-                    Explore events <span aria-hidden="true">→</span>
-                  </button>
-                </div>
-                <div className="hero-visual">
-                  <div className="orbit orbit-one" />
-                  <div className="orbit orbit-two" />
-                  <SeatPreview />
-                  <div className="visual-caption">
-                    A PLACE FOR EVERYONE <span>↗</span>
-                  </div>
-                </div>
-              </section>
+                  {homeEvents.length > 1 && <div className="featured-controls"><button type="button" aria-label="Previous featured event" onClick={() => setFeaturedIndex((index) => (index + homeEvents.length - 1) % homeEvents.length)}>←</button><button type="button" aria-label="Next featured event" onClick={() => setFeaturedIndex((index) => (index + 1) % homeEvents.length)}>→</button></div>}
+                </section>
+                <section className="home-categories" aria-labelledby="categories-title">
+                  <h2 id="categories-title">Browse your way</h2>
+                  <div className="category-tiles">{eventCategories.map((category, index) => <button type="button" key={category} onClick={() => { setCategoryFilter(category); openEvents(); }}><span className="category-tile-art" aria-hidden="true">{["♫", "⚽", "✦", "✎", "✳", "◎", "▣", "★", "♡", "↗"][index]}</span><strong>{category}</strong><i aria-hidden="true">↗</i></button>)}</div>
+                </section>
+                <section className="home-sale" aria-labelledby="sale-title">
+                  <div className="home-sale-heading"><h2 id="sale-title">On sale now</h2><button type="button" onClick={openEvents}>View all <span aria-hidden="true">→</span></button></div>
+                  {homeEvents.length ? <div className="public-event-grid">{homeEvents.slice(0, 8).map((event) => <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onCity={filterByCity} />)}</div> : <p className="home-empty">New events will appear here when organizers publish them.</p>}
+                </section>
+              </div>
             )}
 
             {eventsOpen && (
@@ -1751,39 +1952,44 @@ export function App() {
                 id="events"
                 aria-labelledby="events-title"
               >
-                <div className="events-page-intro">
-                  <span className="section-kicker">FIND YOUR MOMENT</span>
-                  <h1>Explore what’s on.</h1>
-                  <p>
-                    Search the calendar, compare seats, and open an event to see
-                    its live availability.
-                  </p>
-                </div>
                 <form
-                  className="search events-search"
+                  className="search events-search discovery-search"
                   onSubmit={searchEvents}
                   role="search"
+                  onKeyDown={e => { if (e.key === "Escape") setSearchFocused(false); }}
+                  onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setSearchFocused(false); }}
                 >
-                  <label htmlFor="event-search">
-                    What are you looking for?
-                  </label>
-                  <div className="search-row">
-                    <span className="search-icon" aria-hidden="true">
-                      ⌕
-                    </span>
-                    <input
-                      id="event-search"
-                      value={query}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setQuery(value);
-                        setSearchFocused(Boolean(value.trim()));
-                      }}
-                      placeholder="Search events or cities"
-                    />
-                    <button type="submit">
-                      Search <span aria-hidden="true">→</span>
-                    </button>
+                  <div className="discovery-main-filters">
+                    <div className="search-row discovery-query">
+                      <span className="search-icon" aria-hidden="true">⌕</span>
+                      <input
+                        id="event-search"
+                        aria-label="Search events or venues"
+                        value={query}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setQuery(value);
+                          setSearchFocused(Boolean(value.trim()));
+                        }}
+                        placeholder="Search events or venues"
+                      />
+                      <button type="submit" aria-label="Search events">⌕</button>
+                    </div>
+                    <label className="discovery-select"><span className="filter-dot" />
+                      <select aria-label="Event status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as DiscoveryStatus)}>
+                        <option value="all">All statuses</option><option value="live">Happening now</option><option value="upcoming">Upcoming</option><option value="ended">Ended</option>
+                      </select>
+                    </label>
+                    <label className="discovery-select"><span className="filter-dot" />
+                      <select aria-label="Event category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+                        <option>All categories</option>{eventCategories.map((category) => <option key={category}>{category}</option>)}
+                      </select>
+                    </label>
+                    <label className="discovery-select"><span className="filter-dot" />
+                      <select aria-label="Sort events" value={sortOrder} onChange={(event) => setSortOrder(event.target.value as DiscoverySort)}>
+                        <option value="soonest">Soonest first</option><option value="latest">Latest start first</option><option value="ending">Ending soonest</option><option value="name_asc">Alphabetical A–Z</option><option value="name_desc">Alphabetical Z–A</option>
+                      </select>
+                    </label>
                   </div>
                   <div className="search-filters">
                     <label>
@@ -1808,24 +2014,26 @@ export function App() {
                         setQuery("");
                         setCityFilter("");
                         setDateFilter("");
+                        setStatusFilter("all");
+                        setCategoryFilter("All categories");
+                        setSortOrder("soonest");
                         setSearchFocused(false);
-                        void loadPublicEvents({ page: 1 });
+                        void loadPublicEvents({ page: 1, status: "all", category: "All categories", sort: "soonest" });
                       }}
                     >
                       Clear filters
                     </button>
                   </div>
-                  {searchFocused && (
+                  {searchFocused && normalizedQuery && (
                     <div
                       className="search-suggestions"
-                      role="listbox"
+                      role="group"
                       aria-label="Available events"
                     >
                       {suggestedEvents.length ? (
-                        suggestedEvents.slice(0, 5).map((event) => (
+                        suggestedEvents.map((event) => (
                           <button
                             type="button"
-                            role="option"
                             key={event.id}
                             onMouseDown={(clickEvent) =>
                               clickEvent.preventDefault()
@@ -1833,16 +2041,12 @@ export function App() {
                             onClick={() => {
                               setQuery(event.name);
                               setSearchFocused(false);
+                              setSelectedEvent(event);
                             }}
                           >
-                            {event.name}
-                            <small>
-                              {event.venue.city} ·{" "}
-                              {new Date(event.startsAt).toLocaleDateString(
-                                undefined,
-                                { month: "short", day: "numeric" },
-                              )}
-                            </small>
+                            <span className="suggestion-date">{new Date(event.startsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                            <span className="suggestion-copy"><strong>{event.name}</strong><small>{event.venue.name} · {event.venue.city}</small></span>
+                            <i aria-hidden="true">↗</i>
                           </button>
                         ))
                       ) : (
@@ -1855,10 +2059,10 @@ export function App() {
                 </form>
                 <div className="section-heading">
                   <div>
-                    <span className="section-kicker">DISCOVER</span>
-                    <h2 id="events-title">Upcoming events</h2>
+                    <span className="section-kicker">DISCOVER TICKETFLOW</span>
+                    <h2 id="events-title">All events</h2>
                   </div>
-                  <span className="section-line" />
+                  <span className="event-result-count">Showing {visibleEvents.length} of {eventTotal}</span>
                 </div>
                 {eventsLoading ? (
                   <div className="empty-events">
@@ -1874,94 +2078,7 @@ export function App() {
                   <>
                     <div className="public-event-grid">
                       {visibleEvents.map((event) => (
-                        <article
-                          className="public-event-card"
-                          key={event.id}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`View details for ${event.name}`}
-                          onClick={() => setSelectedEvent(event)}
-                          onKeyDown={(keyboardEvent) => {
-                            if (
-                              keyboardEvent.key === "Enter" ||
-                              keyboardEvent.key === " "
-                            ) {
-                              keyboardEvent.preventDefault();
-                              setSelectedEvent(event);
-                            }
-                          }}
-                        >
-                          <div className="public-event-top">
-                            <span className="event-status published">
-                              UPCOMING
-                            </span>
-                            <button
-                              type="button"
-                              className="event-date-link"
-                              onClick={(clickEvent) => {
-                                clickEvent.stopPropagation();
-                                setSelectedEvent(event);
-                              }}
-                            >
-                              {new Date(event.startsAt)
-                                .toLocaleDateString(undefined, {
-                                  month: "short",
-                                  day: "numeric",
-                                })
-                                .toUpperCase()}
-                            </button>
-                          </div>
-                          <button
-                            type="button"
-                            className="event-title-link"
-                            onClick={(clickEvent) => {
-                              clickEvent.stopPropagation();
-                              setSelectedEvent(event);
-                            }}
-                          >
-                            {event.name}
-                          </button>
-                          <p>
-                            {event.venue.name} ·{" "}
-                            <button
-                              type="button"
-                              className="city-filter-link"
-                              onClick={(clickEvent) => {
-                                clickEvent.stopPropagation();
-                                filterByCity(event.venue.city);
-                              }}
-                            >
-                              {event.venue.city}
-                            </button>
-                          </p>
-                          <div className="public-event-meta">
-                            <span>
-                              {
-                                event.seats.filter((seat) => seat.available)
-                                  .length
-                              }{" "}
-                              seats available
-                            </span>
-                            <span>
-                              From{" "}
-                              {Math.min(
-                                ...event.categories.map(
-                                  (category) => category.basePriceCents,
-                                ),
-                              )}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            className="event-details-button"
-                            onClick={(clickEvent) => {
-                              clickEvent.stopPropagation();
-                              setSelectedEvent(event);
-                            }}
-                          >
-                            Choose your seats <span aria-hidden="true">→</span>
-                          </button>
-                        </article>
+                        <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onCity={filterByCity} />
                       ))}
                     </div>
                     {totalPages > 1 && (
@@ -2020,194 +2137,100 @@ export function App() {
               </section>
             )}
 
-            {eventsOpen && visiblePastEvents.length > 0 && (
-              <section
-                className="past-events-section"
-                aria-labelledby="past-events-title"
-              >
-                <div className="section-heading">
-                  <div>
-                    <span className="section-kicker">LOOKING BACK</span>
-                    <h2 id="past-events-title">Past events</h2>
-                  </div>
-                  <span className="section-line" />
+            {guideOpen && (
+              <section className="guide-page" id="how-it-works" aria-labelledby="how-title">
+                <div className="guide-intro">
+                  <span className="section-kicker">YOUR GUIDE TO TICKETFLOW</span>
+                  <h1 id="how-title">A great seat starts <em>here.</em></h1>
+                  <p>TicketFlow connects event organizers with people ready to attend. Explore the event, see its details, choose an available seat, and finish your booking in a few clear steps.</p>
+                  <button className="hero-cta" onClick={openEvents}>Explore events <span aria-hidden="true">↗</span></button>
                 </div>
-                <div className="past-event-list">
-                  {visiblePastEvents.map((event) => (
-                    <article className="past-event-row" key={event.id}>
-                      <div>
-                        <strong>{event.name}</strong>
-                        <span>
-                          {event.venue.city} ·{" "}
-                          {new Date(event.startsAt).toLocaleDateString(
-                            undefined,
-                            { month: "short", day: "numeric", year: "numeric" },
-                          )}
-                        </span>
-                      </div>
-                      <em>Event ended</em>
-                    </article>
-                  ))}
+                <div className="guide-steps">
+                  <article><span>01 / DISCOVER</span><h2>Find your event</h2><p>Browse published upcoming events or search by name, city, and date. Open an event to see its schedule, venue, description, highlights, poster, and ticket prices.</p></article>
+                  <article><span>02 / CHOOSE</span><h2>Pick your seats</h2><p>Sign in with a customer account, then choose available seats on the seat map. Held and booked seats are clearly marked so you know what is open.</p></article>
+                  <article><span>03 / HOLD</span><h2>Take five minutes</h2><p>When you hold seats, they are reserved for five minutes. Complete checkout before the timer ends; otherwise the seats become available again.</p></article>
+                  <article><span>04 / PAY</span><h2>Confirm your booking</h2><p>Choose one of the two mock payment providers and complete payment. A successful payment confirms your booking and sends an in-app notification.</p></article>
                 </div>
-              </section>
-            )}
-
-            {!eventsOpen && (
-              <section
-                className="how-section"
-                id="how-it-works"
-                aria-labelledby="how-title"
-              >
-                <div>
-                  <span className="section-kicker">THE FLOW</span>
-                  <h2 id="how-title">
-                    From “let’s go”
-                    <br />
-                    to front row.
-                  </h2>
-                </div>
-                <div className="steps">
-                  <div>
-                    <span>01</span>
-                    <h3>Find an event</h3>
-                    <p>Browse what’s happening and choose your date.</p>
-                  </div>
-                  <div>
-                    <span>02</span>
-                    <h3>Pick your seat</h3>
-                    <p>See the venue map and hold the spot you want.</p>
-                  </div>
-                  <div>
-                    <span>03</span>
-                    <h3>Keep your ticket</h3>
-                    <p>Pay securely and find your booking in one place.</p>
-                  </div>
-                </div>
+                <div className="guide-note"><div><span className="section-kicker">GOOD TO KNOW</span><h2>Plans can change.</h2></div><p>You can cancel a booking. Confirmed bookings cancelled more than 24 hours before the event qualify for a full refund under the current demo rule; later cancellations do not. Payments and refunds in TicketFlow are simulated.</p></div>
+                <div className="guide-organizers"><span className="section-kicker">FOR ORGANIZERS</span><h2>Publish when you are ready.</h2><p>Organizers create venues, define seat rows and prices, add event details, and save private drafts. Customers only see events after they are published. Organizer access is preconfigured by the site owner.</p></div>
               </section>
             )}
           </>
         )}
       </main>
-      {!eventsOpen && (
+      {!eventsOpen && !guideOpen && (
         <footer className="site-footer">
-          <span>
-            ticketflow<span className="brand-period">.</span>
-          </span>
+          <span>Ticket<span className="brand-flow">Flow</span><span className="brand-period">.</span></span>
           <span>Made for the moments that matter.</span>
         </footer>
       )}
+      {profileOpen && session && <div className="profile-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setProfileOpen(false); }}>
+        <aside className="profile-drawer" aria-label="Account menu">
+          <div className="profile-drawer-head">
+            <span className="profile-avatar large">{session.user.email.slice(0, 2).toUpperCase()}</span>
+            <div><strong>{session.user.email.split("@")[0]}</strong><span>{session.user.email}</span></div>
+            <button type="button" className="profile-close" aria-label="Close account menu" onClick={() => setProfileOpen(false)}>×</button>
+          </div>
+          {profileTab !== "menu" && <button type="button" className="profile-back" onClick={() => setProfileTab("menu")}>← Account menu</button>}
+          {profileTab === "menu" ? <>
+            <div className="profile-quick-actions">
+              <button type="button" onClick={() => setProfileTab("profile")}><span>♙</span>Profile</button>
+              {session.user.role === "customer" && <><button type="button" onClick={() => setProfileTab("tickets")}><span>▣</span>Tickets</button><button type="button" onClick={() => setProfileTab("orders")}><span>▤</span>Orders</button><button type="button" onClick={() => setProfileTab("cart")}><span>⌑</span>Cart</button></>}
+            </div>
+            <div className="profile-drawer-section"><span>BROWSE</span><button type="button" onClick={() => { setProfileOpen(false); openLanding(); }}>⌂ <strong>Home</strong></button><button type="button" onClick={() => { setProfileOpen(false); openEvents(); }}>▦ <strong>Events</strong></button><button type="button" onClick={() => { setProfileOpen(false); openGuide(); }}>◎ <strong>How it works</strong></button></div>
+            {recentlyViewed && <div className="profile-drawer-section"><span>RECENTLY VIEWED</span><button type="button" className="profile-recent" onClick={() => { setProfileOpen(false); setSelectedEvent(recentlyViewed); }}>{recentlyViewed.posterUrl && <img src={recentlyViewed.posterUrl} alt="" />}<strong>{recentlyViewed.name}</strong></button></div>}
+            <button type="button" className="profile-signout" onClick={() => { setProfileOpen(false); setSession(null); }}>Sign out →</button>
+          </> : profileTab === "profile" ? <div className="profile-panel"><h2>Your profile</h2><p>Signed in as <strong>{session.user.email}</strong></p><p>Account type: <strong>{session.user.role}</strong></p></div> : profileTab === "cart" ? <div className="profile-panel"><h2>Your cart</h2><p>Seats are selected and held during checkout. Start with an event to choose yours.</p><button className="primary-button" onClick={() => { setProfileOpen(false); openEvents(); }}>Browse events →</button></div> : <div className="profile-panel"><h2>{profileTab === "tickets" ? "Your tickets" : "Your orders"}</h2>{profileMessage && <p role="status">{profileMessage}</p>}{customerBookings.filter((booking) => profileTab === "orders" || booking.status === "confirmed").length ? customerBookings.filter((booking) => profileTab === "orders" || booking.status === "confirmed").map((booking) => <article className="profile-booking" key={booking.id}><span className="profile-booking-status">{booking.status.replace("_", " ")}</span><h3>{booking.eventName}</h3><p>{new Date(booking.startsAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</p><p>{booking.seats.map((seat) => `${seat.rowLabel}${seat.seatNumber}`).join(", ") || "No seats"}</p><strong>৳{formatPrice(booking.totalCents)}</strong>{profileTab === "orders" && ["held", "pending_payment", "confirmed"].includes(booking.status) && <button className="profile-cancel" disabled={profileBusy} onClick={() => void cancelCustomerBooking(booking.id)}>Cancel booking</button>}</article>) : <p>{profileTab === "tickets" ? "Confirmed tickets will appear here after checkout." : "Your booking history will appear here."}</p>}</div>}
+        </aside>
+      </div>}
       {authOpen && (
         <div
           className="modal-backdrop auth-page-backdrop"
           role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setAuthOpen(false);
-          }}
         >
-          <section
-            className="auth-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="auth-title"
-          >
-            <button
-              className="modal-close"
-              aria-label="Close account dialog"
-              onClick={() => setAuthOpen(false)}
-            >
-              ×
-            </button>
-            <span className="section-kicker">YOUR TICKETFLOW</span>
-            <h2 id="auth-title">
-              {authMode === "login"
-                ? "Welcome back."
-                : "Make room for more moments."}
-            </h2>
-            <p className="auth-intro">
-              {authMode === "login"
-                ? "Sign in to keep your tickets and bookings together."
-                : "Create an account to discover events or publish your own."}
-            </p>
-            <div
-              className="auth-tabs"
-              role="tablist"
-              aria-label="Account action"
-            >
-              <button
-                className={authMode === "login" ? "active" : ""}
-                onClick={() => {
-                  setAuthMode("login");
-                  setAuthError("");
-                }}
-              >
-                Sign in
-              </button>
-              <button
-                className={authMode === "register" ? "active" : ""}
-                onClick={() => {
-                  setAuthMode("register");
-                  setAuthError("");
-                }}
-              >
-                Create account
-              </button>
-            </div>
-            <form className="auth-form" onSubmit={submitAuth}>
-              <label htmlFor="auth-email">Email address</label>
-              <input
-                id="auth-email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                placeholder="you@example.com"
-              />
-              <label htmlFor="auth-password">Password</label>
-              <input
-                id="auth-password"
-                name="password"
-                type="password"
-                autoComplete={
-                  authMode === "login" ? "current-password" : "new-password"
-                }
-                minLength={5}
-                required
-                placeholder="At least 5 characters"
-              />
-              {authMode === "register" && (
-                <>
-                  <label htmlFor="auth-role">I am joining as</label>
-                  <select id="auth-role" name="role" defaultValue="customer">
-                    <option value="customer">
-                      Customer — discover and book events
-                    </option>
-                    <option value="organizer">
-                      Organizer — create and manage events
-                    </option>
-                  </select>
-                </>
-              )}
-              {authError && (
-                <p className="auth-error" role="alert">
-                  {authError}
-                </p>
-              )}
-              <button className="auth-submit" disabled={authBusy}>
-                {authBusy
-                  ? "Please wait…"
-                  : authMode === "login"
-                    ? "Sign in →"
-                    : "Create account →"}
-              </button>
-            </form>
-          </section>
+          <div className="auth-layout" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+            <aside className="auth-showcase">
+              <div className="auth-showcase-head"><span className="auth-brand">Ticket<span>Flow</span>.</span><button onClick={() => setAuthOpen(false)}>Back to site ↗</button></div>
+              <div className="auth-showcase-art" aria-hidden="true"><span>THE STAGE</span><div className="auth-art-seats">{Array.from({ length: 24 }, (_, index) => <i key={index} />)}</div></div>
+              <div className="auth-showcase-copy"><span>WELCOME TO YOUR NEXT EVENT</span><h2>Every great night starts with a seat.</h2><p>Discover what is on, hold your place, and keep the booking close.</p><div>✦ &nbsp; One account for every event</div><div>✦ &nbsp; Your seats held while you check out</div><div>✦ &nbsp; Booking updates in one place</div></div>
+            </aside>
+            <section className="auth-panel">
+              <button className="auth-close" aria-label="Close sign in" onClick={() => setAuthOpen(false)}>×</button>
+              <div className="auth-panel-inner">
+                <span className="section-kicker">TICKETFLOW ACCOUNT</span>
+                <h2 id="auth-title">{authMode === "login" ? "Sign in" : "Create your account"}</h2>
+                <p>{authMode === "login" ? "New here?" : "Already have an account?"} <button className="auth-switch" onClick={() => { setAuthMode(authMode === "login" ? "register" : "login"); setAuthError(""); }}>{authMode === "login" ? "Create a customer account" : "Sign in"}</button></p>
+                <div className="auth-method">Continue with password</div>
+                <form className="auth-form" onSubmit={submitAuth}>
+                  <label htmlFor="auth-email">Email address</label>
+                  <input id="auth-email" name="email" type="email" autoComplete="email" required placeholder="you@example.com" />
+                  <label htmlFor="auth-password">Password</label>
+                  <input id="auth-password" name="password" type="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} minLength={5} required placeholder={authMode === "login" ? "Enter your password" : "At least 5 characters"} />
+                  {authMode === "register" && <p className="auth-customer-note">New accounts are for customers. Organizer access is provided by the site owner.</p>}
+                  {authError && <p className="auth-error" role="alert">{authError}</p>}
+                  <button className="auth-submit" disabled={authBusy}>{authBusy ? "Please wait…" : authMode === "login" ? "Sign in →" : "Create customer account →"}</button>
+                </form>
+                <p className="auth-footnote">This project uses mock payments. Your password is stored as a salted hash.</p>
+              </div>
+            </section>
+          </div>
         </div>
       )}
       {selectedEvent && (
-        <BookingModal
+        <EventDetailsModal
           event={selectedEvent}
-          session={session?.user.role === "customer" ? session : null}
           onClose={() => setSelectedEvent(null)}
+          onChooseSeats={() => {
+            setBookingEvent(selectedEvent);
+            setSelectedEvent(null);
+          }}
+        />
+      )}
+      {bookingEvent && (
+        <BookingModal
+          event={bookingEvent}
+          session={session?.user.role === "customer" ? session : null}
+          onClose={() => setBookingEvent(null)}
           onHeld={() => {
             void loadPublicEvents({
               q: query.trim(),
@@ -2217,11 +2240,11 @@ export function App() {
             });
           }}
           onSignIn={() => {
-            setSelectedEvent(null);
+            setBookingEvent(null);
             openAuth("login");
           }}
           onBookAnother={() => {
-            setSelectedEvent(null);
+            setBookingEvent(null);
             void loadPublicEvents({
               q: query.trim(),
               city: cityFilter.trim(),
