@@ -240,6 +240,30 @@ h1, h2, h3 { font-family: 'Space Grotesk', system-ui, sans-serif; text-wrap: bal
 .auth-submit:disabled { cursor: wait; opacity: 0.5; }
 .auth-error { background: var(--danger-soft); border: 1px solid rgba(248,113,113,0.3); border-radius: 8px; color: var(--danger); font-size: 12px; margin: 8px 0 0; padding: 10px 12px; }
 
+/* ─── Show / hide password ───────────────────────────────────── */
+.auth-password-wrap { position: relative; display: flex; align-items: center; }
+.auth-password-wrap input { flex: 1; padding-right: 2.8rem; }
+.auth-show-pass {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.15s;
+  line-height: 0;
+}
+.auth-show-pass svg { width: 18px; height: 18px; }
+.auth-show-pass:hover { color: var(--accent-bright); }
+:root[data-theme="light"] .auth-show-pass { color: var(--text-muted); }
+
 /* ─── Buttons ─────────────────────────────────────────────────── */
 .primary-button { background: var(--grad-brand); border: 0; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 700; padding: 13px 20px; transition: all 0.2s ease; box-shadow: var(--shadow-accent); display: inline-flex; align-items: center; gap: 6px; }
 .primary-button:hover:not(:disabled) { background: var(--grad-brand-h); box-shadow: 0 12px 36px rgba(139,92,246,0.4); transform: translateY(-2px); }
