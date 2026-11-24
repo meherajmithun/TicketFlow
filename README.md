@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/meherajmithun/TicketFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/meherajmithun/TicketFlow/actions/workflows/ci.yml)
 
-TicketFlow is an event ticket booking project for CPS Academy InterviewQuest-3. The API and web app cover authentication, organizer event setup, public browsing, seat holds, booking lifecycle, mock payments, cancellation/refunds, and notifications. CI verifies the PostgreSQL concurrency path; production deployment remains before submission.
+TicketFlow is an event ticket booking project for CPS Academy InterviewQuest-3. The API and web app cover authentication, organizer event setup, public browsing, seat holds, booking lifecycle, mock payments, cancellation/refunds, and notifications. CI verifies the PostgreSQL concurrency path. The frontend is hosted on Vercel and the API on Railway.
 
 ## Requirements
 
@@ -78,6 +78,15 @@ npm run test:coverage
 
 CI runs these checks on every push and pull request, starts PostgreSQL for migrations and the same-seat concurrency test, and uploads the coverage report.
 
+## Production deployment
+
+- Frontend: https://ticket-flow-tau-drab.vercel.app/
+- API health: https://ticketflow-production-086091eb.up.railway.app/health
+- Vercel builds `apps/web` and needs `VITE_API_URL=https://ticketflow-production-086091eb.up.railway.app` in its Production and Preview environments.
+- Railway runs the API with `DATABASE_URL`, `AUTH_TOKEN_SECRET`, and `CLIENT_ORIGIN=https://ticket-flow-tau-drab.vercel.app`. Set `ORGANIZER_EMAIL` and `ORGANIZER_PASSWORD` together if the organizer account must be provisioned.
+- Apply `npm run db:migrate` against the Railway database before serving a release that changes the schema. Keep database URLs and secrets in Railway, never in Git.
+- Connect both services to this GitHub repository with `main` as their production branch. Vercel creates preview deployments for feature branches; merging a pull request into `main` deploys production. The production smoke-check workflow then checks the public frontend and API.
+
 ## Repository layout
 
 ```text
@@ -93,8 +102,8 @@ PROPOSAL_PLAN.md     Requirement coverage and next build order
 
 | Item | Status |
 | --- | --- |
-| Frontend URL | Pending deployment |
-| Backend URL | Pending deployment |
+| Frontend URL | https://ticket-flow-tau-drab.vercel.app/ |
+| Backend URL | https://ticketflow-production-086091eb.up.railway.app/ |
 | Organizer demo credentials | Pending seeded demo accounts |
 | Customer demo credentials | Pending seeded demo accounts |
 | Video walkthrough | Pending completion |
