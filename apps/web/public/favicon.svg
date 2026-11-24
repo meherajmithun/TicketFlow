@@ -12,5 +12,5 @@
   </defs>
   <rect width="64" height="64" rx="15" fill="url(#background)"/>
   <path d="M12 17h40v11a4 4 0 0 0 0 8v11H12V36a4 4 0 0 0 0-8V17Z" fill="url(#ticket)"/>
-  <path d="M23 24h18v5h-6v16h-6V29h-6v-5Z" fill="#fff"/>
+  <path d="M16 23h16v5h-5v16h-6V28h-5v-5Zm18 0h15v5h-9v4h8v5h-8v7h-6V23Z" fill="#fff"/>
 </svg>
