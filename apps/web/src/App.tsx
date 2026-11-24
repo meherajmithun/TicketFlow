@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, type FormEvent } from "react";
+import { useLayoutEffect, useEffect, useState, useCallback, type FormEvent } from "react";
 
 // ─── Theme helpers ────────────────────────────────────────────
 function getInitialTheme(): "dark" | "light" {
@@ -344,6 +344,10 @@ function EventBookingPage({ event, onBack, onChooseSeats }: { event: BrowseEvent
   const price = Math.min(...event.categories.map((category) => category.basePriceCents));
   const highlights = event.highlights.split(/\n+/).map((item) => item.trim()).filter(Boolean);
   const available = event.seats.filter((seat) => seat.available).length;
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [event.id]);
+
   return <div className="event-booking-page">
     <div className="event-page-hero">
       <button type="button" className="event-page-back" onClick={onBack}>← All events</button>
@@ -1697,7 +1701,7 @@ export function App() {
   const [selectedEvent, setSelectedEvent] = useState<BrowseEvent | null>(null);
   const [eventPage, setEventPage] = useState<BrowseEvent | null>(null);
   const [bookingEvent, setBookingEvent] = useState<BrowseEvent | null>(null);
-  useEffect(() => { if (eventPage) window.scrollTo(0, 0); }, [eventPage]);
+
   const [cityFilter, setCityFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<DiscoveryStatus>("all");
@@ -1893,7 +1897,6 @@ export function App() {
     }
     window.history.pushState({ view: "book-event" }, "", `#book/${event.id}`);
     setEventPage(event);
-    window.scrollTo(0, 0);
   }
 
   function leaveBookEvent() {
