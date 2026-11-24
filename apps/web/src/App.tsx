@@ -390,7 +390,6 @@ function PublicEventCard({ event, onOpen, onBook, onCity }: { event: BrowseEvent
         <div className="discovery-card-bottom">
           <span>{price === 0 ? <>Admission <strong>Free</strong></> : <>Starts from <strong>৳{formatPrice(price)}</strong></>}</span>
           <div className="discovery-card-actions">
-            {phase !== "Ended" && <button type="button" className="discovery-details-action" onClick={onOpen}>Details</button>}
             <button type="button" onClick={phase === "Ended" ? onOpen : onBook}>{phase === "Ended" ? "View event" : "Book now"} <span aria-hidden="true">→</span></button>
           </div>
         </div>
