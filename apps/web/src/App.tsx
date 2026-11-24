@@ -140,34 +140,6 @@ function generateQRPattern(text: string): string {
   return Array.from({ length: 7 }, (_, r) => bits.slice(r * 7, r * 7 + 7).join("")).join("\n");
 }
 
-// ─── Featured countdown component ────────────────────────────────────────────
-function FeaturedCountdown({ startsAt }: { startsAt: string }) {
-  const { days, hours, mins, secs, expired } = useCountdown(startsAt);
-  if (expired) return null;
-  return (
-    <div className="featured-countdown" aria-label="Time until event">
-      {days > 0 && (
-        <div className="countdown-block">
-          <strong>{days}</strong>
-          <span>Days</span>
-        </div>
-      )}
-      <div className="countdown-block">
-        <strong>{String(hours).padStart(2, "0")}</strong>
-        <span>Hrs</span>
-      </div>
-      <div className="countdown-block">
-        <strong>{String(mins).padStart(2, "0")}</strong>
-        <span>Min</span>
-      </div>
-      <div className="countdown-block">
-        <strong>{String(secs).padStart(2, "0")}</strong>
-        <span>Sec</span>
-      </div>
-    </div>
-  );
-}
-
 // ─── Card countdown badge ─────────────────────────────────────────────────────
 function CountdownBadge({ startsAt }: { startsAt: string }) {
   const { days, hours, mins, expired } = useCountdown(startsAt);
@@ -227,36 +199,6 @@ async function publicRequest<T>(path: string) {
   if (!response.ok)
     throw new Error(payload.error?.message ?? "Could not load events");
   return payload;
-}
-
-const seats = Array.from({ length: 48 }, (_, index) => index);
-
-function SeatPreview() {
-  return (
-    <div className="seat-preview" aria-hidden="true">
-      <div className="preview-topline">
-        <span>THE STAGE</span>
-        <span>YOUR SEAT AWAITS</span>
-      </div>
-      <div className="stage" />
-      <div className="seat-grid">
-        {seats.map((seat) => (
-          <span
-            className={`seat ${[8, 13, 23, 28, 37].includes(seat) ? "seat-selected" : ""}`}
-            key={seat}
-          />
-        ))}
-      </div>
-      <div className="preview-legend">
-        <span>
-          <i className="legend-dot" /> Available
-        </span>
-        <span>
-          <i className="legend-dot selected" /> Your picks
-        </span>
-      </div>
-    </div>
-  );
 }
 
 function EventDetailsModal({
@@ -1742,7 +1684,6 @@ export function App() {
   const [publicEvents, setPublicEvents] = useState<BrowseEvent[]>([]);
   const [homeEvents, setHomeEvents] = useState<BrowseEvent[]>([]);
   const [pastEvents, setPastEvents] = useState<BrowseEvent[]>([]);
-  const [featuredIndex, setFeaturedIndex] = useState(0);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventTotal, setEventTotal] = useState(0);
   const [eventsOpen, setEventsOpen] = useState(
@@ -2089,7 +2030,6 @@ export function App() {
     .filter(match => Number.isFinite(match.rank))
     .sort((a, b) => a.rank - b.rank || Date.parse(a.event.startsAt) - Date.parse(b.event.startsAt))
     .slice(0, 5).map(match => match.event);
-  const featuredEvent = homeEvents.length ? homeEvents[featuredIndex % homeEvents.length] : null;
 
   return (
     <div className="site-shell">
@@ -2207,20 +2147,19 @@ export function App() {
           <>
             {!eventsOpen && !guideOpen && (
               <div className="home-discovery">
-                <section className="featured-event" aria-label="Featured event">
-                  {featuredEvent?.posterUrl && <img src={featuredEvent.posterUrl} alt="" onError={(imageEvent) => { imageEvent.currentTarget.hidden = true; }} />}
-                  <div className="featured-fallback-art" aria-hidden="true"><SeatPreview /></div>
+                <section className="featured-event marketing-hero" aria-labelledby="marketing-hero-title">
+                  <img src="/images/ticketflow-hero.webp" alt="Crowds enjoying a concert, sports event, festival, and conference" />
                   <div className="featured-shade" />
                   <div className="featured-copy">
-                    <span className="section-kicker">YOUR NEXT MOMENT STARTS HERE</span>
-                    <h1>{featuredEvent?.name ?? "Find your place in the moment."}</h1>
-                    <p>{featuredEvent ? `${featuredEvent.venue.name} · ${featuredEvent.venue.city} · ${new Date(featuredEvent.startsAt).toLocaleDateString(undefined, { dateStyle: "medium" })}` : "Discover events, pick your spot, and keep every ticket in one place."}</p>
-                    {featuredEvent && eventPhase(featuredEvent) === "Upcoming" && (
-                      <FeaturedCountdown startsAt={featuredEvent.startsAt} />
-                    )}
-                    <button className="hero-cta" onClick={featuredEvent ? () => setSelectedEvent(featuredEvent) : openEvents}>{featuredEvent ? "View event" : "Explore events"} <span aria-hidden="true">↗</span></button>
+                    <span className="section-kicker">TICKETFLOW · FIND YOUR NEXT LIVE MOMENT</span>
+                    <h1 id="marketing-hero-title">Be there when <em>it happens.</em></h1>
+                    <p>Concerts, sports, festivals, and more across Bangladesh. Discover the event, choose your seat, and keep your ticket in one place.</p>
+                    <div className="marketing-hero-actions">
+                      <button className="hero-cta" type="button" onClick={openEvents}>Explore events <span aria-hidden="true">↗</span></button>
+                      <button className="marketing-hero-secondary" type="button" onClick={openGuide}>How it works <span aria-hidden="true">→</span></button>
+                    </div>
+                    <div className="marketing-hero-note">Discover <span>·</span> Choose your seat <span>·</span> Enjoy the moment</div>
                   </div>
-                  {homeEvents.length > 1 && <div className="featured-controls"><button type="button" aria-label="Previous featured event" onClick={() => setFeaturedIndex((index) => (index + homeEvents.length - 1) % homeEvents.length)}>←</button><button type="button" aria-label="Next featured event" onClick={() => setFeaturedIndex((index) => (index + 1) % homeEvents.length)}>→</button></div>}
                 </section>
                 <section className="home-categories" aria-labelledby="categories-title">
                   <h2 id="categories-title">Browse your way</h2>
