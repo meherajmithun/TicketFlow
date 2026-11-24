@@ -1828,10 +1828,22 @@ export function App() {
   }, [profileOpen, profileTab, session]);
 
   useEffect(() => {
+    let navigationVersion = 0;
     const handleHistoryChange = () => {
+      const version = ++navigationVersion;
+      setBookingEvent(null);
+      const bookingId = window.location.hash.match(/^#book\/([0-9a-f-]{36})$/i)?.[1];
+      if (bookingId) {
+        void publicRequest<{ event: BrowseEvent }>(`/events/${bookingId}`)
+          .then(({ event }) => { if (version === navigationVersion) setEventPage(event); })
+          .catch(() => { if (version === navigationVersion) setEventPage(null); });
+      } else {
+        setEventPage(null);
+      }
       setEventsOpen(window.location.hash === "#events");
       setGuideOpen(window.location.hash === "#how-it-works");
     };
+    handleHistoryChange();
     window.addEventListener("popstate", handleHistoryChange);
     window.addEventListener("hashchange", handleHistoryChange);
     return () => {
@@ -1923,6 +1935,20 @@ export function App() {
     setAuthMode(mode);
     setAuthError("");
     setAuthOpen(true);
+  }
+
+  function openBookEvent(event: BrowseEvent) {
+    window.history.pushState({ view: "book-event" }, "", `#book/${event.id}`);
+    setEventPage(event);
+    window.scrollTo(0, 0);
+  }
+
+  function leaveBookEvent() {
+    if (window.history.state?.view === "book-event") {
+      window.history.back();
+    } else {
+      openEvents();
+    }
   }
 
   function openEvents() {
@@ -2151,7 +2177,7 @@ export function App() {
         {session?.user.role === "organizer" ? (
           <OrganizerDashboard session={session} />
         ) : eventPage ? (
-          <EventBookingPage event={eventPage} onBack={() => { setEventPage(null); window.scrollTo(0, 0); }} onChooseSeats={() => setBookingEvent(eventPage)} />
+          <EventBookingPage event={eventPage} onBack={leaveBookEvent} onChooseSeats={() => setBookingEvent(eventPage)} />
         ) : (
           <>
             {!eventsOpen && !guideOpen && (
@@ -2195,7 +2221,7 @@ export function App() {
                 </section>
                 <section className="home-sale" aria-labelledby="sale-title">
                   <div className="home-sale-heading"><h2 id="sale-title">On sale now</h2><button type="button" onClick={openEvents}>View all <span aria-hidden="true">→</span></button></div>
-                  {homeEvents.length ? <div className="public-event-grid">{homeEvents.slice(0, 8).map((event) => <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onBook={() => setEventPage(event)} onCity={filterByCity} />)}</div> : <p className="home-empty">New events will appear here when organizers publish them.</p>}
+                  {homeEvents.length ? <div className="public-event-grid">{homeEvents.slice(0, 8).map((event) => <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onBook={() => openBookEvent(event)} onCity={filterByCity} />)}</div> : <p className="home-empty">New events will appear here when organizers publish them.</p>}
                 </section>
               </div>
             )}
@@ -2359,7 +2385,7 @@ export function App() {
                   <>
                     <div className="public-event-grid">
                       {visibleEvents.map((event) => (
-                        <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onBook={() => setEventPage(event)} onCity={filterByCity} />
+                        <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onBook={() => openBookEvent(event)} onCity={filterByCity} />
                       ))}
                     </div>
                     {totalPages > 1 && (
