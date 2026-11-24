@@ -369,7 +369,7 @@ function EventDetailsModal({
   );
 }
 
-function PublicEventCard({ event, onOpen, onBook, onCity }: { event: BrowseEvent; onOpen: () => void; onBook: () => void; onCity: (city: string) => void }) {
+function PublicEventCard({ event, onOpen, onBook, onCity }: { event: BrowseEvent; onOpen: () => void; onBook?: () => void; onCity: (city: string) => void }) {
   const phase = eventPhase(event);
   const price = Math.min(...event.categories.map((category) => category.basePriceCents));
   return (
@@ -1741,6 +1741,7 @@ export function App() {
   const [query, setQuery] = useState("");
   const [publicEvents, setPublicEvents] = useState<BrowseEvent[]>([]);
   const [homeEvents, setHomeEvents] = useState<BrowseEvent[]>([]);
+  const [pastEvents, setPastEvents] = useState<BrowseEvent[]>([]);
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventTotal, setEventTotal] = useState(0);
@@ -1929,6 +1930,9 @@ export function App() {
     ])
       .then(([live, upcoming]) => setHomeEvents([...live.events, ...upcoming.events].slice(0, 8)))
       .catch(() => setHomeEvents([]));
+    void publicRequest<{ events: BrowseEvent[] }>("/events?status=ended&sort=latest&pageSize=8")
+      .then(({ events }) => setPastEvents(events))
+      .catch(() => setPastEvents([]));
   }, []);
 
   function openAuth(mode: "login" | "register") {
@@ -1975,6 +1979,16 @@ export function App() {
           ?.scrollIntoView({ behavior: "smooth" }),
       0,
     );
+  }
+
+  function openPastEvents() {
+    setQuery("");
+    setCityFilter("");
+    setDateFilter("");
+    setCategoryFilter("All categories");
+    setStatusFilter("ended");
+    setSortOrder("latest");
+    openEvents();
   }
 
   function openLanding() {
@@ -2231,8 +2245,12 @@ export function App() {
                   </div>
                 </section>
                 <section className="home-sale" aria-labelledby="sale-title">
-                  <div className="home-sale-heading"><h2 id="sale-title">On sale now</h2><button type="button" onClick={openEvents}>View all <span aria-hidden="true">→</span></button></div>
+                  <div className="home-sale-heading"><h2 id="sale-title">On sale now</h2><button type="button" onClick={() => { setStatusFilter("all"); setSortOrder("soonest"); openEvents(); }}>View all <span aria-hidden="true">→</span></button></div>
                   {homeEvents.length ? <div className="public-event-grid">{homeEvents.slice(0, 8).map((event) => <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onBook={() => openBookEvent(event)} onCity={filterByCity} />)}</div> : <p className="home-empty">New events will appear here when organizers publish them.</p>}
+                </section>
+                <section className="home-past" aria-labelledby="past-title">
+                  <div className="home-sale-heading"><h2 id="past-title">Past events</h2><button type="button" onClick={openPastEvents}>View all <span aria-hidden="true">→</span></button></div>
+                  {pastEvents.length ? <div className="public-event-grid">{pastEvents.map((event) => <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onCity={filterByCity} />)}</div> : <p className="home-empty">Completed events will appear here.</p>}
                 </section>
               </div>
             )}
