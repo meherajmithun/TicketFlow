@@ -314,12 +314,19 @@ function EventDetailsModal({
 function PublicEventCard({ event, onOpen, onBook, onCity }: { event: BrowseEvent; onOpen: () => void; onBook?: () => void; onCity: (city: string) => void }) {
   const phase = eventPhase(event);
   const price = Math.min(...event.categories.map((category) => category.basePriceCents));
+  const startDate = new Date(event.startsAt);
   return (
     <article className="discovery-card">
       <button className="discovery-poster" type="button" onClick={onOpen} aria-label={`View ${event.name}`}>
         <span className="discovery-poster-fallback"><small>{event.category}</small><strong>{event.name}</strong></span>
         {event.posterUrl && <img src={event.posterUrl} alt="" loading="lazy" onError={(imageEvent) => { imageEvent.currentTarget.hidden = true; }} />}
-        <span className="discovery-date"><small>{new Date(event.startsAt).toLocaleDateString(undefined, { month: "short", weekday: "short" })}</small><strong>{new Date(event.startsAt).toLocaleDateString(undefined, { day: "numeric" })}</strong></span>
+        <time className="discovery-date" dateTime={event.startsAt}>
+          <strong>{startDate.toLocaleDateString(undefined, { day: "numeric" })}</strong>
+          <span className="discovery-date-copy">
+            <small className="discovery-date-month">{startDate.toLocaleDateString(undefined, { month: "short" })}</small>
+            <small className="discovery-date-weekday">{startDate.toLocaleDateString(undefined, { weekday: "short" })}</small>
+          </span>
+        </time>
         <span className={`discovery-phase ${phase.toLowerCase()}`}>{phase === "Live" && <i />} {phase}</span>
         {phase === "Upcoming" && <CountdownBadge startsAt={event.startsAt} />}
       </button>
