@@ -183,13 +183,14 @@ export class PgEventRepository implements EventRepository {
     if (search.city) { params.push(`%${search.city}%`); filters.push(`v.city ILIKE $${params.length}`); }
     if (search.date) { params.push(search.date); filters.push(`e.starts_at::date = $${params.length}::date`); }
     if (search.category && search.category !== 'All categories') { params.push(search.category); filters.push(`e.category = $${params.length}`); }
-    const count = await this.pool.query<{ count: string }>(`SELECT count(*) FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${filters.join(' AND ')}`, params);
-    const total = Number(count.rows[0]?.count ?? 0);
     const limitPlaceholder = params.length + 1;
     const offsetPlaceholder = params.length + 2;
-    params.push(search.pageSize, (search.page - 1) * search.pageSize);
     const orderBy = { soonest: 'e.starts_at ASC', latest: 'e.starts_at DESC', ending: 'e.ends_at ASC', name_asc: 'e.name ASC', name_desc: 'e.name DESC' }[search.sort ?? 'soonest'];
-    const events = await this.findMany(filters.join(' AND '), params, `ORDER BY ${orderBy}, e.id ASC LIMIT $${limitPlaceholder} OFFSET $${offsetPlaceholder}`);
+    const [count, events] = await Promise.all([
+      this.pool.query<{ count: string }>(`SELECT count(*) FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${filters.join(' AND ')}`, params),
+      this.findMany(filters.join(' AND '), [...params, search.pageSize, (search.page - 1) * search.pageSize], `ORDER BY ${orderBy}, e.id ASC LIMIT $${limitPlaceholder} OFFSET $${offsetPlaceholder}`),
+    ]);
+    const total = Number(count.rows[0]?.count ?? 0);
     return { events, total, page: search.page, pageSize: search.pageSize, totalPages: Math.ceil(total / search.pageSize) };
   }
 
@@ -209,8 +210,7 @@ export class PgEventRepository implements EventRepository {
               e.name, e.description, e.poster_url, e.highlights, e.category, e.starts_at, e.ends_at, e.pricing_strategy, e.status
        FROM events e JOIN venues v ON v.id = e.venue_id WHERE ${where} ${pagination || 'ORDER BY e.starts_at ASC'}`, params,
     );
-    const events: Event[] = [];
-    for (const row of result.rows) {
+    return Promise.all(result.rows.map(async (row) => {
       const [categories, seats] = await Promise.all([
         this.pool.query<CategoryRow>('SELECT id, name, base_price_cents FROM seat_categories WHERE event_id = $1 ORDER BY base_price_cents, name', [row.id]),
         this.pool.query<SeatRow>(
@@ -220,8 +220,7 @@ export class PgEventRepository implements EventRepository {
            WHERE s.event_id = $1 ORDER BY s.row_label, s.seat_number`, [row.id],
         ),
       ]);
-      events.push(mapEvent(row, categories.rows, seats.rows));
-    }
-    return events;
+      return mapEvent(row, categories.rows, seats.rows);
+    }));
   }
 }

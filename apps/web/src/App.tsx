@@ -1,4 +1,4 @@
-import { useLayoutEffect, useEffect, useState, useCallback, type FormEvent } from "react";
+import { useLayoutEffect, useEffect, useState, useCallback, useRef, type FormEvent } from "react";
 
 // ─── Theme helpers ────────────────────────────────────────────
 function getInitialTheme(): "dark" | "light" {
@@ -1649,6 +1649,7 @@ export function App() {
   const [homeEvents, setHomeEvents] = useState<BrowseEvent[]>([]);
   const [pastEvents, setPastEvents] = useState<BrowseEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const eventRequestVersion = useRef(0);
   const [eventTotal, setEventTotal] = useState(0);
   const [eventsOpen, setEventsOpen] = useState(
     () => window.location.hash === "#events",
@@ -1792,6 +1793,7 @@ export function App() {
   async function loadPublicEvents(
     filters: { q?: string; city?: string; date?: string; status?: DiscoveryStatus; category?: string; sort?: DiscoverySort; page?: number } = {},
   ) {
+    const requestVersion = ++eventRequestVersion.current;
     setEventsLoading(true);
     const params = new URLSearchParams({
       page: String(filters.page ?? 1),
@@ -1805,6 +1807,7 @@ export function App() {
     params.set("sort", filters.sort ?? sortOrder);
     await publicRequest<{ events: BrowseEvent[]; total: number; totalPages: number; page: number }>(`/events?${params.toString()}`)
       .then((payload) => {
+        if (requestVersion !== eventRequestVersion.current) return;
         setPublicEvents(payload.events);
         setEventTotal(payload.total);
         setTotalPages(payload.totalPages);
@@ -1818,10 +1821,11 @@ export function App() {
         );
       })
       .catch(() => {
+        if (requestVersion !== eventRequestVersion.current) return;
         setPublicEvents([]);
         setEventTotal(0);
       })
-      .finally(() => setEventsLoading(false));
+      .finally(() => { if (requestVersion === eventRequestVersion.current) setEventsLoading(false); });
   }
 
   useEffect(() => {
@@ -1876,13 +1880,7 @@ export function App() {
     setGuideOpen(false);
     if (window.location.hash !== "#events")
       window.history.pushState({ view: "events" }, "", "#events");
-    window.setTimeout(
-      () =>
-        document
-          .getElementById("events")
-          ?.scrollIntoView({ behavior: "smooth" }),
-      0,
-    );
+    window.setTimeout(() => document.getElementById("events")?.scrollIntoView({ behavior: "instant" }), 0);
   }
 
   function openPastEvents() {
@@ -1901,7 +1899,7 @@ export function App() {
     setGuideOpen(false);
     if (window.location.hash)
       window.history.pushState({ view: "landing" }, "", "#top");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   function openGuide() {
@@ -1910,7 +1908,7 @@ export function App() {
     setGuideOpen(true);
     if (window.location.hash !== "#how-it-works")
       window.history.pushState({ view: "guide" }, "", "#how-it-works");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   async function submitAuth(event: FormEvent<HTMLFormElement>) {
@@ -1948,7 +1946,7 @@ export function App() {
       date: dateFilter,
       page: 1,
     });
-    document.getElementById("events")?.scrollIntoView({ behavior: "smooth" });
+    document.getElementById("events")?.scrollIntoView({ behavior: "instant" });
   }
 
   function filterByCity(city: string) {
@@ -1957,7 +1955,7 @@ export function App() {
     setCityFilter(city);
     setDateFilter("");
     void loadPublicEvents({ city, page: 1 });
-    document.getElementById("events")?.scrollIntoView({ behavior: "smooth" });
+    document.getElementById("events")?.scrollIntoView({ behavior: "instant" });
   }
 
   const normalizedQuery = query.trim().toLowerCase();
