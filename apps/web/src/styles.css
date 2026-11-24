@@ -1311,9 +1311,10 @@ h1, h2, h3 { font-family: 'Space Grotesk', system-ui, sans-serif; text-wrap: bal
 }
 
 /* TicketFlow campaign hero */
-.marketing-hero { background: #160923; border-color: rgba(197,148,255,.25); min-height: clamp(440px, 46vw, 630px); }
-.marketing-hero > img { opacity: 1; object-position: center 44%; }
-.marketing-hero .featured-shade { background: linear-gradient(90deg, rgba(14,5,26,.72) 0%, rgba(14,5,26,.44) 38%, transparent 70%), linear-gradient(0deg, rgba(14,5,26,.32), transparent 35%); }
+.marketing-hero { background: radial-gradient(circle at 78% 48%, #871d45 0%, #4b143b 37%, #190d27 78%); border-color: rgba(245,182,209,.3); min-height: clamp(440px, 46vw, 630px); }
+.marketing-hero::before { border: 1px solid rgba(255,215,228,.11); border-radius: 50%; content: ""; height: 80%; position: absolute; right: 5%; top: 9%; width: 43%; }
+.marketing-hero > img { height: 78%; inset: auto 5% auto auto; object-fit: contain; opacity: 1; position: absolute; top: 10%; width: 43%; z-index: 1; }
+.marketing-hero .featured-shade { background: linear-gradient(90deg, rgba(15,5,25,.6) 0%, rgba(15,5,25,.16) 56%, transparent 75%); }
 .marketing-hero .featured-copy { bottom: clamp(2.2rem, 5vw, 4.5rem); max-width: min(610px, 55%); }
 .marketing-hero .section-kicker { color: #e9aeff; font-size: .72rem; font-weight: 800; letter-spacing: .2em; }
 .marketing-hero h1 { font-size: clamp(3.5rem, 6.2vw, 6.7rem); line-height: .96; margin: 1.1rem 0 1.4rem; text-wrap: balance; }
@@ -1326,8 +1327,9 @@ h1, h2, h3 { font-family: 'Space Grotesk', system-ui, sans-serif; text-wrap: bal
 .marketing-hero-secondary:hover { background: rgba(255,255,255,.18); }
 .marketing-hero-note { color: #d2bbdf; font-size: .76rem; font-weight: 600; letter-spacing: .035em; margin-top: 1.5rem; }
 .marketing-hero-note span { color: #ea82db; margin-inline: .35rem; }
-@media (max-width: 800px) { .marketing-hero .featured-copy { max-width: 70%; } .marketing-hero > img { object-position: 61% center; } }
-@media (max-width: 600px) { .marketing-hero { min-height: 560px; } .marketing-hero > img { object-position: 67% center; } .marketing-hero .featured-shade { background: linear-gradient(0deg, rgba(14,5,26,.97), rgba(14,5,26,.65) 52%, rgba(14,5,26,.12)); } .marketing-hero .featured-copy { bottom: 2rem; left: 1.3rem; max-width: calc(100% - 2.6rem); } .marketing-hero h1 { font-size: clamp(2.8rem, 11vw, 4.2rem); } .marketing-hero .featured-copy p { font-size: .95rem; } .marketing-hero-note { line-height: 1.5; } }
+.marketing-hero-credit { color: rgba(255,232,239,.7); display: block; font-size: .65rem; line-height: 1.4; margin-top: .7rem; }
+@media (max-width: 800px) { .marketing-hero .featured-copy { max-width: 65%; } .marketing-hero > img { right: 2%; width: 43%; } }
+@media (max-width: 600px) { .marketing-hero { min-height: 640px; } .marketing-hero::before { height: 42%; right: 15%; top: 1%; width: 70%; } .marketing-hero > img { height: 42%; right: 15%; top: 2%; width: 70%; } .marketing-hero .featured-shade { background: linear-gradient(0deg, rgba(14,5,26,.94), rgba(14,5,26,.5) 53%, transparent 78%); } .marketing-hero .featured-copy { bottom: 2rem; left: 1.3rem; max-width: calc(100% - 2.6rem); } .marketing-hero h1 { font-size: clamp(2.8rem, 11vw, 4.2rem); } .marketing-hero .featured-copy p { font-size: .95rem; } .marketing-hero-note { line-height: 1.5; } }
 
 /* Small screens: keep the booking, discovery, and studio controls usable. */
 @media (max-width: 900px) {
