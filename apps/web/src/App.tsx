@@ -204,18 +204,12 @@ async function publicRequest<T>(path: string) {
 function EventDetailsModal({
   event,
   onClose,
-  onChooseSeats,
 }: {
   event: BrowseEvent;
   onClose: () => void;
-  onChooseSeats: () => void;
 }) {
   const [posterFailed, setPosterFailed] = useState(false);
   const availableSeats = event.seats.filter((seat) => seat.available).length;
-  const highlights = event.highlights
-    .split(/\n+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
 
   return (
     <div
@@ -258,53 +252,11 @@ function EventDetailsModal({
             <h3>About this event</h3>
             <p>{event.description || "The organizer has not added a full description yet."}</p>
           </section>
-          {highlights.length > 0 && (
-            <section>
-              <h3>What you’ll experience</h3>
-              <ul>{highlights.map((highlight) => <li key={highlight}>{highlight}</li>)}</ul>
-            </section>
-          )}
           <div className="event-story-facts">
             <span><strong>{availableSeats}</strong> seats available</span>
             <span><strong>{event.categories.length}</strong> ticket {event.categories.length === 1 ? "category" : "categories"}</span>
             <span><strong>{formatPrice(Math.min(...event.categories.map((category) => category.basePriceCents)))}</strong> starting price</span>
           </div>
-          {/* Social share row */}
-          <div className="event-share-row">
-            {typeof navigator !== "undefined" && "share" in navigator && (
-              <button
-                type="button"
-                className="share-button share-native"
-                onClick={() => void (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share({ title: event.name, text: event.description, url: window.location.href })}
-              >
-                ↗ Share
-              </button>
-            )}
-            <a
-              className="share-button share-twitter"
-              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${event.name} @ ${event.venue.name}`)}&url=${encodeURIComponent(window.location.href)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              𝕏 Twitter
-            </a>
-            <a
-              className="share-button share-whatsapp"
-              href={`https://wa.me/?text=${encodeURIComponent(`${event.name} @ ${event.venue.name} — ${window.location.href}`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              WhatsApp
-            </a>
-            <button
-              type="button"
-              className="share-button share-copy"
-              onClick={() => { void navigator.clipboard.writeText(window.location.href); }}
-            >
-              Copy link
-            </button>
-          </div>
-          {eventPhase(event) === "Ended" ? <p className="event-ended-note">This event has ended. Booking is closed.</p> : <button className="primary-button event-story-action" onClick={onChooseSeats}>Choose your seats <span aria-hidden="true">→</span></button>}
         </div>
       </article>
     </div>
@@ -2633,10 +2585,6 @@ export function App() {
         <EventDetailsModal
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
-          onChooseSeats={() => {
-            setBookingEvent(selectedEvent);
-            setSelectedEvent(null);
-          }}
         />
       )}
       {bookingEvent && (
