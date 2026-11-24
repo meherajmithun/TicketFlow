@@ -140,34 +140,6 @@ function generateQRPattern(text: string): string {
   return Array.from({ length: 7 }, (_, r) => bits.slice(r * 7, r * 7 + 7).join("")).join("\n");
 }
 
-// ─── Featured countdown component ────────────────────────────────────────────
-function FeaturedCountdown({ startsAt }: { startsAt: string }) {
-  const { days, hours, mins, secs, expired } = useCountdown(startsAt);
-  if (expired) return null;
-  return (
-    <div className="featured-countdown" aria-label="Time until event">
-      {days > 0 && (
-        <div className="countdown-block">
-          <strong>{days}</strong>
-          <span>Days</span>
-        </div>
-      )}
-      <div className="countdown-block">
-        <strong>{String(hours).padStart(2, "0")}</strong>
-        <span>Hrs</span>
-      </div>
-      <div className="countdown-block">
-        <strong>{String(mins).padStart(2, "0")}</strong>
-        <span>Min</span>
-      </div>
-      <div className="countdown-block">
-        <strong>{String(secs).padStart(2, "0")}</strong>
-        <span>Sec</span>
-      </div>
-    </div>
-  );
-}
-
 // ─── Card countdown badge ─────────────────────────────────────────────────────
 function CountdownBadge({ startsAt }: { startsAt: string }) {
   const { days, hours, mins, expired } = useCountdown(startsAt);
@@ -227,36 +199,6 @@ async function publicRequest<T>(path: string) {
   if (!response.ok)
     throw new Error(payload.error?.message ?? "Could not load events");
   return payload;
-}
-
-const seats = Array.from({ length: 48 }, (_, index) => index);
-
-function SeatPreview() {
-  return (
-    <div className="seat-preview" aria-hidden="true">
-      <div className="preview-topline">
-        <span>THE STAGE</span>
-        <span>YOUR SEAT AWAITS</span>
-      </div>
-      <div className="stage" />
-      <div className="seat-grid">
-        {seats.map((seat) => (
-          <span
-            className={`seat ${[8, 13, 23, 28, 37].includes(seat) ? "seat-selected" : ""}`}
-            key={seat}
-          />
-        ))}
-      </div>
-      <div className="preview-legend">
-        <span>
-          <i className="legend-dot" /> Available
-        </span>
-        <span>
-          <i className="legend-dot selected" /> Your picks
-        </span>
-      </div>
-    </div>
-  );
 }
 
 function EventDetailsModal({
@@ -369,7 +311,7 @@ function EventDetailsModal({
   );
 }
 
-function PublicEventCard({ event, onOpen, onBook, onCity }: { event: BrowseEvent; onOpen: () => void; onBook: () => void; onCity: (city: string) => void }) {
+function PublicEventCard({ event, onOpen, onBook, onCity }: { event: BrowseEvent; onOpen: () => void; onBook?: () => void; onCity: (city: string) => void }) {
   const phase = eventPhase(event);
   const price = Math.min(...event.categories.map((category) => category.basePriceCents));
   return (
@@ -1741,7 +1683,7 @@ export function App() {
   const [query, setQuery] = useState("");
   const [publicEvents, setPublicEvents] = useState<BrowseEvent[]>([]);
   const [homeEvents, setHomeEvents] = useState<BrowseEvent[]>([]);
-  const [featuredIndex, setFeaturedIndex] = useState(0);
+  const [pastEvents, setPastEvents] = useState<BrowseEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventTotal, setEventTotal] = useState(0);
   const [eventsOpen, setEventsOpen] = useState(
@@ -1929,6 +1871,9 @@ export function App() {
     ])
       .then(([live, upcoming]) => setHomeEvents([...live.events, ...upcoming.events].slice(0, 8)))
       .catch(() => setHomeEvents([]));
+    void publicRequest<{ events: BrowseEvent[] }>("/events?status=ended&sort=latest&pageSize=8")
+      .then(({ events }) => setPastEvents(events))
+      .catch(() => setPastEvents([]));
   }, []);
 
   function openAuth(mode: "login" | "register") {
@@ -1938,6 +1883,13 @@ export function App() {
   }
 
   function openBookEvent(event: BrowseEvent) {
+    // Keep a landing-page entry immediately before the booking page so the
+    // browser Back button stays inside TicketFlow, even from the events list.
+    if (window.location.hash === "#top" || !window.location.hash) {
+      window.history.replaceState({ view: "landing" }, "", "#top");
+    } else {
+      window.history.pushState({ view: "landing" }, "", "#top");
+    }
     window.history.pushState({ view: "book-event" }, "", `#book/${event.id}`);
     setEventPage(event);
     window.scrollTo(0, 0);
@@ -1947,7 +1899,11 @@ export function App() {
     if (window.history.state?.view === "book-event") {
       window.history.back();
     } else {
-      openEvents();
+      window.history.replaceState({ view: "landing" }, "", "#top");
+      setEventPage(null);
+      setEventsOpen(false);
+      setGuideOpen(false);
+      window.scrollTo(0, 0);
     }
   }
 
@@ -1964,6 +1920,16 @@ export function App() {
           ?.scrollIntoView({ behavior: "smooth" }),
       0,
     );
+  }
+
+  function openPastEvents() {
+    setQuery("");
+    setCityFilter("");
+    setDateFilter("");
+    setCategoryFilter("All categories");
+    setStatusFilter("ended");
+    setSortOrder("latest");
+    openEvents();
   }
 
   function openLanding() {
@@ -2064,7 +2030,6 @@ export function App() {
     .filter(match => Number.isFinite(match.rank))
     .sort((a, b) => a.rank - b.rank || Date.parse(a.event.startsAt) - Date.parse(b.event.startsAt))
     .slice(0, 5).map(match => match.event);
-  const featuredEvent = homeEvents.length ? homeEvents[featuredIndex % homeEvents.length] : null;
 
   return (
     <div className="site-shell">
@@ -2182,20 +2147,20 @@ export function App() {
           <>
             {!eventsOpen && !guideOpen && (
               <div className="home-discovery">
-                <section className="featured-event" aria-label="Featured event">
-                  {featuredEvent?.posterUrl && <img src={featuredEvent.posterUrl} alt="" onError={(imageEvent) => { imageEvent.currentTarget.hidden = true; }} />}
-                  <div className="featured-fallback-art" aria-hidden="true"><SeatPreview /></div>
+                <section className="featured-event marketing-hero" aria-labelledby="marketing-hero-title">
+                  <img src="/images/laeeb-stadium-hero.webp" alt="La’eeb mascot floating above a stadium crowd" />
                   <div className="featured-shade" />
                   <div className="featured-copy">
-                    <span className="section-kicker">YOUR NEXT MOMENT STARTS HERE</span>
-                    <h1>{featuredEvent?.name ?? "Find your place in the moment."}</h1>
-                    <p>{featuredEvent ? `${featuredEvent.venue.name} · ${featuredEvent.venue.city} · ${new Date(featuredEvent.startsAt).toLocaleDateString(undefined, { dateStyle: "medium" })}` : "Discover events, pick your spot, and keep every ticket in one place."}</p>
-                    {featuredEvent && eventPhase(featuredEvent) === "Upcoming" && (
-                      <FeaturedCountdown startsAt={featuredEvent.startsAt} />
-                    )}
-                    <button className="hero-cta" onClick={featuredEvent ? () => setSelectedEvent(featuredEvent) : openEvents}>{featuredEvent ? "View event" : "Explore events"} <span aria-hidden="true">↗</span></button>
+                    <span className="section-kicker">TICKETFLOW · FIND YOUR NEXT LIVE MOMENT</span>
+                    <h1 id="marketing-hero-title">Be there when <em>it happens.</em></h1>
+                    <p>Concerts, sports, festivals, and more across Bangladesh. Discover the event, choose your seat, and keep your ticket in one place.</p>
+                    <div className="marketing-hero-actions">
+                      <button className="hero-cta" type="button" onClick={openEvents}>Explore events <span aria-hidden="true">↗</span></button>
+                      <button className="marketing-hero-secondary" type="button" onClick={openGuide}>How it works <span aria-hidden="true">→</span></button>
+                    </div>
+                    <div className="marketing-hero-note">Discover <span>·</span> Choose your seat <span>·</span> Enjoy the moment</div>
+                    <small className="marketing-hero-credit">La’eeb, the Qatar 2022 mascot, shown as a sports tribute. TicketFlow is independent of FIFA.</small>
                   </div>
-                  {homeEvents.length > 1 && <div className="featured-controls"><button type="button" aria-label="Previous featured event" onClick={() => setFeaturedIndex((index) => (index + homeEvents.length - 1) % homeEvents.length)}>←</button><button type="button" aria-label="Next featured event" onClick={() => setFeaturedIndex((index) => (index + 1) % homeEvents.length)}>→</button></div>}
                 </section>
                 <section className="home-categories" aria-labelledby="categories-title">
                   <h2 id="categories-title">Browse your way</h2>
@@ -2208,6 +2173,13 @@ export function App() {
                         className="category-tile-btn"
                         data-category={category.toLowerCase()}
                       >
+                        <img
+                          className="category-tile-image"
+                          src={`/images/categories/${category.toLowerCase()}.webp`}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                        />
                         <span
                           className="category-tile-art"
                           aria-hidden="true"
@@ -2220,8 +2192,12 @@ export function App() {
                   </div>
                 </section>
                 <section className="home-sale" aria-labelledby="sale-title">
-                  <div className="home-sale-heading"><h2 id="sale-title">On sale now</h2><button type="button" onClick={openEvents}>View all <span aria-hidden="true">→</span></button></div>
+                  <div className="home-sale-heading"><h2 id="sale-title">On sale now</h2><button type="button" onClick={() => { setStatusFilter("all"); setSortOrder("soonest"); openEvents(); }}>View all <span aria-hidden="true">→</span></button></div>
                   {homeEvents.length ? <div className="public-event-grid">{homeEvents.slice(0, 8).map((event) => <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onBook={() => openBookEvent(event)} onCity={filterByCity} />)}</div> : <p className="home-empty">New events will appear here when organizers publish them.</p>}
+                </section>
+                <section className="home-past" aria-labelledby="past-title">
+                  <div className="home-sale-heading"><h2 id="past-title">Past events</h2><button type="button" onClick={openPastEvents}>View all <span aria-hidden="true">→</span></button></div>
+                  {pastEvents.length ? <div className="public-event-grid">{pastEvents.map((event) => <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onCity={filterByCity} />)}</div> : <p className="home-empty">Completed events will appear here.</p>}
                 </section>
               </div>
             )}
