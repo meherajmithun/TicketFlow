@@ -671,6 +671,7 @@ function BookingModal({
                 Booked
               </span>
             </div>
+            <p className="seat-scroll-hint">Swipe sideways to see every seat <span aria-hidden="true">→</span></p>
             <div className="seat-picker" aria-label="Seat selection">
               {Object.entries(seatRows).map(([row, seats]) => {
                 const category = categoryByName.get(
@@ -2130,9 +2131,10 @@ export function App() {
             </button>
             <button
               className="header-link header-button"
+              aria-label="Join TicketFlow"
               onClick={() => openAuth("register")}
             >
-              Join TicketFlow <span aria-hidden="true">↗</span>
+              <span className="join-label-long">Join TicketFlow</span><span className="join-label-short">Join</span> <span aria-hidden="true">↗</span>
             </button>
           </div>
         )}
@@ -2249,7 +2251,7 @@ export function App() {
                       <label className="filter-chip">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                         <select aria-label="Event category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-                          <option>All categories</option>
+                          <option value="All categories">Any type</option>
                           {eventCategories.map((category) => <option key={category}>{category}</option>)}
                         </select>
                         <svg className="chip-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
