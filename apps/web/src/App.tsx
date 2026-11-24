@@ -1938,6 +1938,13 @@ export function App() {
   }
 
   function openBookEvent(event: BrowseEvent) {
+    // Keep a landing-page entry immediately before the booking page so the
+    // browser Back button stays inside TicketFlow, even from the events list.
+    if (window.location.hash === "#top" || !window.location.hash) {
+      window.history.replaceState({ view: "landing" }, "", "#top");
+    } else {
+      window.history.pushState({ view: "landing" }, "", "#top");
+    }
     window.history.pushState({ view: "book-event" }, "", `#book/${event.id}`);
     setEventPage(event);
     window.scrollTo(0, 0);
@@ -1947,7 +1954,11 @@ export function App() {
     if (window.history.state?.view === "book-event") {
       window.history.back();
     } else {
-      openEvents();
+      window.history.replaceState({ view: "landing" }, "", "#top");
+      setEventPage(null);
+      setEventsOpen(false);
+      setGuideOpen(false);
+      window.scrollTo(0, 0);
     }
   }
 
