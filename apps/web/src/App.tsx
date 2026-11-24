@@ -2148,7 +2148,7 @@ export function App() {
             {!eventsOpen && !guideOpen && (
               <div className="home-discovery">
                 <section className="featured-event marketing-hero" aria-labelledby="marketing-hero-title">
-                  <img src="/images/qatar-2022-emblem.webp" alt="FIFA World Cup Qatar 2022 emblem" />
+                  <img src="/images/laeeb-stadium-hero.webp" alt="La’eeb mascot floating above a stadium crowd" />
                   <div className="featured-shade" />
                   <div className="featured-copy">
                     <span className="section-kicker">TICKETFLOW · FIND YOUR NEXT LIVE MOMENT</span>
@@ -2159,7 +2159,7 @@ export function App() {
                       <button className="marketing-hero-secondary" type="button" onClick={openGuide}>How it works <span aria-hidden="true">→</span></button>
                     </div>
                     <div className="marketing-hero-note">Discover <span>·</span> Choose your seat <span>·</span> Enjoy the moment</div>
-                    <small className="marketing-hero-credit">Qatar 2022 emblem shown as a sports design tribute. TicketFlow is independent of FIFA.</small>
+                    <small className="marketing-hero-credit">La’eeb, the Qatar 2022 mascot, shown as a sports tribute. TicketFlow is independent of FIFA.</small>
                   </div>
                 </section>
                 <section className="home-categories" aria-labelledby="categories-title">
