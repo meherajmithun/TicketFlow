@@ -369,7 +369,7 @@ function EventDetailsModal({
   );
 }
 
-function PublicEventCard({ event, onOpen, onCity }: { event: BrowseEvent; onOpen: () => void; onCity: (city: string) => void }) {
+function PublicEventCard({ event, onOpen, onBook, onCity }: { event: BrowseEvent; onOpen: () => void; onBook: () => void; onCity: (city: string) => void }) {
   const phase = eventPhase(event);
   const price = Math.min(...event.categories.map((category) => category.basePriceCents));
   return (
@@ -389,11 +389,38 @@ function PublicEventCard({ event, onOpen, onCity }: { event: BrowseEvent; onOpen
         </div>
         <div className="discovery-card-bottom">
           <span>{price === 0 ? <>Admission <strong>Free</strong></> : <>Starts from <strong>৳{formatPrice(price)}</strong></>}</span>
-          <button type="button" onClick={onOpen}>{phase === "Ended" ? "View event" : "Book now"} <span aria-hidden="true">→</span></button>
+          <div className="discovery-card-actions">
+            {phase !== "Ended" && <button type="button" className="discovery-details-action" onClick={onOpen}>Details</button>}
+            <button type="button" onClick={phase === "Ended" ? onOpen : onBook}>{phase === "Ended" ? "View event" : "Book now"} <span aria-hidden="true">→</span></button>
+          </div>
         </div>
       </div>
     </article>
   );
+}
+
+function EventBookingPage({ event, onBack, onChooseSeats }: { event: BrowseEvent; onBack: () => void; onChooseSeats: () => void }) {
+  const price = Math.min(...event.categories.map((category) => category.basePriceCents));
+  const highlights = event.highlights.split(/\n+/).map((item) => item.trim()).filter(Boolean);
+  const available = event.seats.filter((seat) => seat.available).length;
+  return <div className="event-booking-page">
+    <div className="event-page-hero">
+      <button type="button" className="event-page-back" onClick={onBack}>← All events</button>
+      <div className="event-page-poster">{event.posterUrl ? <img src={event.posterUrl} alt={`${event.name} poster`} /> : <div className="event-page-poster-fallback"><span>{event.category}</span><strong>{event.name}</strong></div>}</div>
+    </div>
+    <div className="event-page-layout">
+      <div className="event-page-content">
+        <span className="section-kicker">{event.category.toUpperCase()} · {eventPhase(event).toUpperCase()}</span>
+        <h1>{event.name}</h1>
+        <div className="event-page-meta"><div><span>DATE & TIME</span><strong>{new Date(event.startsAt).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" })}</strong><small>Ends {new Date(event.endsAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</small></div><div><span>VENUE</span><strong>{event.venue.name}</strong><small>{event.venue.city} · {event.venue.address}</small></div></div>
+        <section className="event-page-section"><span className="section-kicker">ABOUT THE EVENT</span><h2>What to expect</h2><p>{event.description || "The organizer has not added a full description yet."}</p></section>
+        {highlights.length > 0 && <section className="event-page-section"><span className="section-kicker">HIGHLIGHTS</span><h2>What you’ll experience</h2><ul>{highlights.map((item) => <li key={item}>{item}</li>)}</ul></section>}
+        <section className="event-page-section"><span className="section-kicker">TICKETS</span><h2>Choose your place</h2><div className="event-page-categories">{event.categories.map((category) => <div key={category.name}><strong>{category.name}</strong><span>৳{formatPrice(category.basePriceCents)} / seat</span></div>)}</div></section>
+        <div className="event-page-venue"><span>⌖ EVENT VENUE</span><strong>{event.venue.name}</strong><p>{event.venue.address}, {event.venue.city}</p></div>
+      </div>
+      <aside className="event-page-sidebar"><div className="event-page-ticket-card"><span>Tickets from</span><strong>৳{formatPrice(price)}</strong><small>{event.categories.length} ticket types · {available} seats available</small><button type="button" onClick={onChooseSeats}>Choose seats <span aria-hidden="true">→</span></button><small>Seats are held for 5 minutes during checkout</small></div></aside>
+    </div>
+  </div>;
 }
 
 function BookingModal({
@@ -424,6 +451,8 @@ function BookingModal({
   const [paymentProvider, setPaymentProvider] = useState<"stripe" | "paypal">(
     "stripe",
   );
+  const lowestPrice = Math.min(...event.categories.map((category) => category.basePriceCents));
+  const availableSeats = event.seats.filter((seat) => seat.available).length;
   useEffect(() => {
     if (!hold) return undefined;
     const timer = window.setInterval(
@@ -579,15 +608,20 @@ function BookingModal({
         >
           ×
         </button>
-        <span className="section-kicker">CHOOSE YOUR MOMENT</span>
-        <h2 id="booking-title">{event.name}</h2>
-        <p className="booking-meta">
-          {event.venue.name} · {event.venue.city} ·{" "}
-          {new Date(event.startsAt).toLocaleString(undefined, {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}
-        </p>
+        <div className="booking-event-hero">
+          {event.posterUrl && <img src={event.posterUrl} alt="" />}
+          <div className="booking-event-hero-copy">
+            <span className="section-kicker">{event.category.toUpperCase()} · TICKETS</span>
+            <h2 id="booking-title">{event.name}</h2>
+            <p className="booking-meta">{event.venue.name} · {event.venue.city} · {new Date(event.startsAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</p>
+          </div>
+          {!hold && <aside className="booking-ticket-summary">
+            <span>Tickets from</span><strong>{formatPrice(lowestPrice)}</strong>
+            <small>{availableSeats} seats available · {event.categories.length} ticket types</small>
+            <button type="button" onClick={() => document.getElementById("booking-seat-selection")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Choose seats <span aria-hidden="true">→</span></button>
+            <small className="secure-checkout">Secure checkout</small>
+          </aside>}
+        </div>
         {hold ? (
           <div className="hold-confirmation">
             <span className="hold-icon">
@@ -662,7 +696,7 @@ function BookingModal({
           </div>
         ) : (
           <>
-            <div className="booking-stage">THE STAGE</div>
+            <div id="booking-seat-selection" className="booking-stage">THE STAGE · SELECT YOUR SEATS</div>
             <div className="category-legend" aria-label="Seat category prices">
               <div className="category-legend-heading">
                 <span className="form-label">SEAT CATEGORIES</span>
@@ -1719,7 +1753,9 @@ export function App() {
   );
   const [searchFocused, setSearchFocused] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<BrowseEvent | null>(null);
+  const [eventPage, setEventPage] = useState<BrowseEvent | null>(null);
   const [bookingEvent, setBookingEvent] = useState<BrowseEvent | null>(null);
+  useEffect(() => { if (eventPage) window.scrollTo(0, 0); }, [eventPage]);
   const [cityFilter, setCityFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<DiscoveryStatus>("all");
@@ -1891,6 +1927,7 @@ export function App() {
   }
 
   function openEvents() {
+    setEventPage(null);
     setEventsOpen(true);
     setGuideOpen(false);
     if (window.location.hash !== "#events")
@@ -1905,6 +1942,7 @@ export function App() {
   }
 
   function openLanding() {
+    setEventPage(null);
     setEventsOpen(false);
     setGuideOpen(false);
     if (window.location.hash)
@@ -1913,6 +1951,7 @@ export function App() {
   }
 
   function openGuide() {
+    setEventPage(null);
     setEventsOpen(false);
     setGuideOpen(true);
     if (window.location.hash !== "#how-it-works")
@@ -2112,6 +2151,8 @@ export function App() {
       <main id="top">
         {session?.user.role === "organizer" ? (
           <OrganizerDashboard session={session} />
+        ) : eventPage ? (
+          <EventBookingPage event={eventPage} onBack={() => { setEventPage(null); window.scrollTo(0, 0); }} onChooseSeats={() => setBookingEvent(eventPage)} />
         ) : (
           <>
             {!eventsOpen && !guideOpen && (
@@ -2140,6 +2181,7 @@ export function App() {
                         key={category}
                         onClick={() => { setCategoryFilter(category); openEvents(); }}
                         className="category-tile-btn"
+                        data-category={category.toLowerCase()}
                       >
                         <span
                           className="category-tile-art"
@@ -2154,7 +2196,7 @@ export function App() {
                 </section>
                 <section className="home-sale" aria-labelledby="sale-title">
                   <div className="home-sale-heading"><h2 id="sale-title">On sale now</h2><button type="button" onClick={openEvents}>View all <span aria-hidden="true">→</span></button></div>
-                  {homeEvents.length ? <div className="public-event-grid">{homeEvents.slice(0, 8).map((event) => <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onCity={filterByCity} />)}</div> : <p className="home-empty">New events will appear here when organizers publish them.</p>}
+                  {homeEvents.length ? <div className="public-event-grid">{homeEvents.slice(0, 8).map((event) => <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onBook={() => setEventPage(event)} onCity={filterByCity} />)}</div> : <p className="home-empty">New events will appear here when organizers publish them.</p>}
                 </section>
               </div>
             )}
@@ -2318,7 +2360,7 @@ export function App() {
                   <>
                     <div className="public-event-grid">
                       {visibleEvents.map((event) => (
-                        <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onCity={filterByCity} />
+                        <PublicEventCard key={event.id} event={event} onOpen={() => setSelectedEvent(event)} onBook={() => setEventPage(event)} onCity={filterByCity} />
                       ))}
                     </div>
                     {totalPages > 1 && (

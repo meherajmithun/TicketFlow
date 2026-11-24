@@ -1,63 +1,31 @@
-name: CD
+name: Production smoke checks
 
+# Vercel and Railway deploy from their GitHub integrations after a merge to main.
+# This workflow checks the public deployment once both services have had time to update.
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  deploy-api:
-    name: Deploy API
+  verify-production:
     runs-on: ubuntu-latest
-    environment: production
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy API to Render
-        # Trigger a Render deploy hook stored as a repository secret.
-        # Set RENDER_DEPLOY_HOOK_API in Settings → Secrets → Actions.
-        run: |
-          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK_API }}" ]; then
-            curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_API }}" \
-              -H "Accept: application/json" \
-              && echo "API deploy triggered"
-          else
-            echo "RENDER_DEPLOY_HOOK_API secret not set – skipping API deploy"
-          fi
-
-  deploy-web:
-    name: Deploy Web
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build web app
+      - name: Check web and API
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-        run: npm run build -w @ticketflow/web
-
-      - name: Deploy web to Netlify
-        # Requires NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID in repository secrets.
-        # Install Netlify CLI and deploy the built dist folder.
+          WEB_URL: https://ticket-flow-tau-drab.vercel.app
+          API_URL: https://ticketflow-production-086091eb.up.railway.app
         run: |
-          if [ -n "${{ secrets.NETLIFY_AUTH_TOKEN }}" ]; then
-            npm install -g netlify-cli --silent
-            netlify deploy \
-              --auth "${{ secrets.NETLIFY_AUTH_TOKEN }}" \
-              --site "${{ secrets.NETLIFY_SITE_ID }}" \
-              --dir apps/web/dist \
-              --prod \
-              --message "Deploy from GitHub Actions (commit ${{ github.sha }})"
-          else
-            echo "NETLIFY_AUTH_TOKEN secret not set – skipping web deploy"
-          fi
-
+          for attempt in {1..20}; do
+            if curl --fail --silent --show-error --max-time 20 "$WEB_URL/" -o /dev/null \
+              && curl --fail --silent --show-error --max-time 20 "$API_URL/health" | grep -q '"status":"ok"' \
+              && curl --fail --silent --show-error --max-time 20 \
+                -H "Origin: $WEB_URL" "$API_URL/events?pageSize=1" -o /dev/null; then
+              echo "Production web and API are reachable"
+              exit 0
+            fi
+            echo "Production is not ready yet (attempt $attempt/20)"
+            sleep 30
+          done
+          echo "Production smoke checks failed"
+          exit 1
