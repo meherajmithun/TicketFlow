@@ -2173,6 +2173,13 @@ export function App() {
                         className="category-tile-btn"
                         data-category={category.toLowerCase()}
                       >
+                        <img
+                          className="category-tile-image"
+                          src={`/images/categories/${category.toLowerCase()}.webp`}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                        />
                         <span
                           className="category-tile-art"
                           aria-hidden="true"

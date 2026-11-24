@@ -320,8 +320,9 @@ h1, h2, h3 { font-family: 'Space Grotesk', system-ui, sans-serif; text-wrap: bal
 .home-categories, .home-sale, .home-past { margin-top: clamp(3rem, 6vw, 5.5rem); }
 .home-categories h2, .home-sale h2, .home-past h2 { color: var(--text-primary); font-family: 'Space Grotesk', sans-serif; font-size: clamp(1.8rem, 4vw, 3.2rem); font-weight: 800; letter-spacing: -0.04em; margin: 0 0 1.5rem; }
 .category-tiles { display: grid; gap: 0.9rem; grid-auto-columns: minmax(130px, 1fr); grid-auto-flow: column; overflow-x: auto; padding-bottom: 0.75rem; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
-.category-tile-btn { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; color: var(--text-primary); cursor: pointer; display: grid; gap: 0.65rem; min-height: 158px; padding: 1rem; text-align: left; transition: all 0.25s ease; backdrop-filter: blur(8px); position: relative; overflow: hidden; }
-.category-tile-btn::after { background: radial-gradient(ellipse at 80% 8%, var(--category-glow, rgba(139,92,246,0.20)), transparent 58%), linear-gradient(145deg, transparent 35%, var(--category-wash, rgba(139,92,246,0.09))); content: ""; inset: 0; opacity: 0.85; pointer-events: none; position: absolute; transition: opacity .25s ease; }
+.category-tile-btn { background: #211a30; border: 1px solid rgba(255,255,255,.2); border-radius: 20px; color: #fff; cursor: pointer; display: grid; grid-template-rows: auto 1fr auto; gap: 0.65rem; min-height: 196px; padding: 1rem; text-align: left; transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease; position: relative; overflow: hidden; isolation: isolate; }
+.category-tile-image { height: 100%; inset: 0; object-fit: cover; object-position: center; position: absolute; transition: transform .5s ease; width: 100%; z-index: -2; }
+.category-tile-btn::after { background: linear-gradient(180deg, rgba(12,7,25,.18) 0%, rgba(12,7,25,.12) 36%, rgba(12,7,25,.84) 100%); content: ""; inset: 0; pointer-events: none; position: absolute; z-index: -1; }
 .category-tile-btn[data-category="concert"] { --category-glow: rgba(244,63,94,.26); --category-wash: rgba(244,63,94,.10); }
 .category-tile-btn[data-category="sports"] { --category-glow: rgba(34,197,94,.25); --category-wash: rgba(34,197,94,.10); }
 .category-tile-btn[data-category="stand-up"] { --category-glow: rgba(245,158,11,.27); --category-wash: rgba(245,158,11,.10); }
@@ -332,15 +333,17 @@ h1, h2, h3 { font-family: 'Space Grotesk', system-ui, sans-serif; text-wrap: bal
 .category-tile-btn[data-category="competition"] { --category-glow: rgba(234,179,8,.25); --category-wash: rgba(234,179,8,.10); }
 .category-tile-btn[data-category="fundraiser"] { --category-glow: rgba(20,184,166,.24); --category-wash: rgba(20,184,166,.10); }
 .category-tile-btn[data-category="other"] { --category-glow: rgba(139,92,246,.22); --category-wash: rgba(139,92,246,.09); }
-.category-tile-btn::before { content: ""; position: absolute; inset: 0; background: var(--grad-brand); opacity: 0; transition: opacity 0.25s; border-radius: inherit; }
-.category-tile-btn:hover { border-color: var(--border-accent); box-shadow: var(--shadow-accent); transform: translateY(-6px) scale(1.015); }
-.category-tile-btn:hover::before { opacity: 0.07; }
-.category-tile-art { align-items: center; background: linear-gradient(145deg, rgba(255,255,255,.82), var(--category-wash, var(--accent-softer))); border: 1px solid var(--border-accent); border-radius: 14px; color: var(--accent-bright); display: flex; height: 56px; justify-content: center; position: relative; transition: all 0.25s; width: 56px; z-index: 1; box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 0 6px 16px rgba(35,25,65,.08); }
+.category-tile-btn::before { content: ""; position: absolute; inset: 0; background: var(--grad-brand); opacity: 0; transition: opacity 0.25s; border-radius: inherit; z-index: -1; }
+.category-tile-btn:hover { border-color: rgba(207,170,255,.9); box-shadow: 0 14px 28px rgba(29,12,61,.25); transform: translateY(-5px); }
+.category-tile-btn:hover::before { opacity: 0.12; }
+.category-tile-btn:hover .category-tile-image { transform: scale(1.08); }
+.category-tile-btn:focus-visible { outline: 3px solid #b893ff; outline-offset: 3px; }
+.category-tile-art { align-items: center; background: rgba(255,255,255,.18); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.45); border-radius: 13px; color: #fff; display: flex; height: 48px; justify-content: center; position: relative; transition: all 0.25s; width: 48px; box-shadow: 0 5px 16px rgba(15,5,35,.18); }
 .category-tile-art svg { width: 26px; height: 26px; }
-.category-tile-btn:hover .category-tile-art { background: var(--grad-brand); border-color: transparent; box-shadow: 0 6px 20px rgba(139,92,246,0.4); color: #fff; transform: scale(1.08); }
-.category-tile-btn strong { color: var(--text-primary); font-size: 0.88rem; font-weight: 700; position: relative; z-index: 1; }
-.category-tile-arrow { font-style: normal; justify-self: end; color: var(--text-faint); font-size: 0.85rem; position: relative; transition: color 0.2s, transform 0.2s; }
-.category-tile-btn:hover .category-tile-arrow { color: var(--accent-bright); transform: translate(2px,-2px); }
+.category-tile-btn:hover .category-tile-art { background: rgba(139,92,246,.75); border-color: rgba(255,255,255,.7); transform: scale(1.06); }
+.category-tile-btn strong { align-self: end; color: #fff; font-size: .94rem; font-weight: 800; position: relative; text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+.category-tile-arrow { bottom: 1rem; color: #fff; font-size: 1rem; font-style: normal; position: absolute; right: 1rem; text-shadow: 0 2px 8px rgba(0,0,0,.6); transition: transform .2s; }
+.category-tile-btn:hover .category-tile-arrow { transform: translate(2px,-2px); }
 
 .home-sale-heading { align-items: center; display: flex; justify-content: space-between; }
 .home-sale-heading button { background: none; border: 0; color: var(--accent-bright); cursor: pointer; font-size: 1rem; font-weight: 700; transition: color 0.2s; }
@@ -1311,7 +1314,7 @@ h1, h2, h3 { font-family: 'Space Grotesk', system-ui, sans-serif; text-wrap: bal
 }
 
 /* TicketFlow campaign hero */
-.marketing-hero { background: #16091d; border-color: rgba(245,182,209,.3); min-height: clamp(440px, 46vw, 630px); }
+.featured-event.marketing-hero { background: #16091d; border-color: rgba(245,182,209,.3); min-height: clamp(500px, 49vw, 700px); }
 .marketing-hero > img { height: 100%; inset: 0; object-fit: cover; object-position: center; opacity: 1; position: absolute; width: 100%; }
 .marketing-hero .featured-shade { background: linear-gradient(90deg, rgba(15,5,25,.48) 0%, rgba(15,5,25,.2) 42%, transparent 72%); }
 .marketing-hero .featured-copy { bottom: clamp(2.2rem, 5vw, 4.5rem); max-width: min(610px, 55%); }
@@ -1328,7 +1331,7 @@ h1, h2, h3 { font-family: 'Space Grotesk', system-ui, sans-serif; text-wrap: bal
 .marketing-hero-note span { color: #ea82db; margin-inline: .35rem; }
 .marketing-hero-credit { color: rgba(255,232,239,.7); display: block; font-size: .65rem; line-height: 1.4; margin-top: .7rem; }
 @media (max-width: 800px) { .marketing-hero .featured-copy { max-width: 65%; } .marketing-hero > img { object-position: 62% center; } }
-@media (max-width: 600px) { .marketing-hero { min-height: 640px; } .marketing-hero > img { object-position: 72% center; } .marketing-hero .featured-shade { background: linear-gradient(0deg, rgba(14,5,26,.98), rgba(14,5,26,.72) 45%, rgba(14,5,26,.1) 83%); } .marketing-hero .featured-copy { bottom: 2rem; left: 1.3rem; max-width: calc(100% - 2.6rem); } .marketing-hero h1 { font-size: clamp(2.8rem, 11vw, 4.2rem); } .marketing-hero .featured-copy p { font-size: .95rem; } .marketing-hero-note { line-height: 1.5; } }
+@media (max-width: 600px) { .featured-event.marketing-hero { min-height: 680px; } .marketing-hero > img { object-position: 72% center; } .marketing-hero .featured-shade { background: linear-gradient(0deg, rgba(14,5,26,.98), rgba(14,5,26,.72) 45%, rgba(14,5,26,.1) 83%); } .marketing-hero .featured-copy { bottom: 2rem; left: 1.3rem; max-width: calc(100% - 2.6rem); } .marketing-hero h1 { font-size: clamp(2.8rem, 11vw, 4.2rem); } .marketing-hero .featured-copy p { font-size: .95rem; } .marketing-hero-note { line-height: 1.5; } }
 
 /* Small screens: keep the booking, discovery, and studio controls usable. */
 @media (max-width: 900px) {
