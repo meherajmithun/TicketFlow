@@ -8,6 +8,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:api": "npm run dev -w @ticketflow/api",
     "dev:web": "npm run dev -w @ticketflow/web",
+    "demo:prepare": "node scripts/prepare-demo.mjs",
     "db:migrate": "npm run db:migrate -w @ticketflow/api",
     "build": "npm run build -w @ticketflow/api && npm run build -w @ticketflow/web",
     "typecheck": "npm run typecheck -w @ticketflow/api && npm run typecheck -w @ticketflow/web",
