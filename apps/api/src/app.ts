@@ -4,8 +4,9 @@ import { z } from 'zod';
 import type { AppConfig } from './config.js';
 import { AuthError, type AuthService } from './auth/service.js';
 import { loginSchema, registerSchema, requireAuth } from './auth/http.js';
-import { createEventSchema, eventSearchSchema, eventStatusSchema, updateEventSchema, venueSchema } from './events/http.js';
+import { createEventSchema, eventCategorySchema, eventSearchSchema, eventStatusSchema, updateEventSchema, venueSchema } from './events/http.js';
 import { EventError, EventService } from './events/service.js';
+import { CategoryError, type CategoryService } from './events/category.js';
 import { holdSeatsSchema } from './booking/http.js';
 import { BookingError, BookingService } from './booking/service.js';
 import { paySchema } from './payment/http.js';
@@ -13,7 +14,7 @@ import { PaymentError, PaymentService } from './payment/service.js';
 import { NotificationService } from './notification/service.js';
 import { createRateLimiter } from './rate-limit.js';
 
-export function createApp(config: AppConfig, auth: AuthService, events?: EventService, bookings?: BookingService, payments?: PaymentService, notifications?: NotificationService) {
+export function createApp(config: AppConfig, auth: AuthService, events?: EventService, bookings?: BookingService, payments?: PaymentService, notifications?: NotificationService, eventCategories?: CategoryService) {
   const app = express();
   app.disable('x-powered-by');
   app.use(cors({ origin: config.clientOrigin }));
@@ -60,6 +61,22 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     response.json({ user: { id: sub, role } });
   });
 
+  if (eventCategories) {
+    const organizerAuth = requireAuth(config.authTokenSecret, 'organizer');
+    app.get('/event-categories', async (_request, response, next) => {
+      try { response.json({ categories: await eventCategories.list() }); } catch (error) { next(error); }
+    });
+    app.post('/event-categories', organizerAuth, async (request, response, next) => {
+      try { response.status(201).json({ category: await eventCategories.create(response.locals.auth.sub, eventCategorySchema.parse(request.body)) }); } catch (error) { next(error); }
+    });
+    app.patch('/event-categories/:categoryId', organizerAuth, async (request, response, next) => {
+      try { response.json({ category: await eventCategories.update(response.locals.auth.sub, request.params.categoryId!, eventCategorySchema.parse(request.body)) }); } catch (error) { next(error); }
+    });
+    app.delete('/event-categories/:categoryId', organizerAuth, async (request, response, next) => {
+      try { await eventCategories.delete(response.locals.auth.sub, request.params.categoryId!); response.status(204).send(); } catch (error) { next(error); }
+    });
+  }
+
   if (events) {
     const organizerAuth = requireAuth(config.authTokenSecret, 'organizer');
     app.post('/venues', organizerAuth, async (request, response, next) => {
@@ -80,6 +97,7 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     app.post('/events/organizer', organizerAuth, async (request, response, next) => {
       try {
         const input = createEventSchema.parse(request.body);
+        if (eventCategories) await eventCategories.assertSelectable(response.locals.auth.sub, input.category);
         const categoryNames = new Map(input.categories.map((category) => [category.name.toLowerCase(), category.name]));
         const event = await events.createEvent({
           organizerId: response.locals.auth.sub,
@@ -114,6 +132,7 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     app.patch('/events/organizer/:eventId', organizerAuth, async (request, response, next) => {
       try {
         const input = updateEventSchema.parse(request.body);
+        if (eventCategories) await eventCategories.assertSelectable(response.locals.auth.sub, input.category);
         const categoryNames = new Map(input.categories.map((category) => [category.name.toLowerCase(), category.name]));
         response.json({ event: await events.updateEvent({ eventId: request.params.eventId!, organizerId: response.locals.auth.sub, venueId: input.venueId, name: input.name, description: input.description, posterUrl: input.posterUrl, highlights: input.highlights, category: input.category, startsAt: input.startsAt, endsAt: input.endsAt, pricingStrategy: input.pricingStrategy, status: input.status, rows: input.seatMap.rows.map((row) => ({ label: row.label, category: categoryNames.get(row.category.toLowerCase())! })), seatsPerRow: input.seatMap.seatsPerRow, categories: input.categories }) });
       } catch (error) { next(error); }
@@ -210,6 +229,10 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     }
     if (error instanceof EventError) {
       response.status(error.code === 'NOT_OWNER' ? 403 : error.code === 'EVENT_HAS_BOOKINGS' || error.code === 'VENUE_IN_USE' ? 409 : 404).json({ error: { code: error.code, message: error.message } });
+      return;
+    }
+    if (error instanceof CategoryError) {
+      response.status(error.code === 'CATEGORY_TAKEN' || error.code === 'CATEGORY_IN_USE' ? 409 : error.code === 'CATEGORY_NOT_AVAILABLE' ? 400 : 404).json({ error: { code: error.code, message: error.message } });
       return;
     }
     if (error instanceof BookingError) {

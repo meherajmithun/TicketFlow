@@ -6,6 +6,7 @@ import { AuthService, type User, type UserRepository } from '../src/auth/service
 import { signToken } from '../src/auth/token.js';
 import { EventService } from '../src/events/service.js';
 import { createEventSchema } from '../src/events/http.js';
+import { CategoryError, CategoryService, type CategoryInput, type CategoryRepository, type EventCategory } from '../src/events/category.js';
 import type { EventRepository } from '../src/events/repository.js';
 import type { CreateEventInput, CreateVenueInput, Event, Venue } from '../src/events/types.js';
 import type { AppConfig } from '../src/config.js';
@@ -27,6 +28,53 @@ test('event posters accept supported uploaded images and reject active content',
   assert.equal(createEventSchema.safeParse({ ...input, posterUrl: 'data:image/png;base64,iVBORw0KGgo=' }).success, true);
   assert.equal(createEventSchema.safeParse({ ...input, posterUrl: 'data:image/svg+xml;base64,PHN2Zz4=' }).success, false);
   assert.equal(createEventSchema.safeParse({ ...input, posterUrl: 'javascript:alert(1)' }).success, false);
+});
+
+test('organizers manage category images while customers can only browse', async () => {
+  class MemoryCategories implements CategoryRepository {
+    private items: EventCategory[] = [{ id: 'default', organizerId: null, name: 'Other', imageUrl: '/images/categories/other.webp' }];
+    async list() { return this.items; }
+    async create(owner: string, input: CategoryInput) {
+      if (this.items.some((item) => item.name.toLowerCase() === input.name.toLowerCase())) throw new CategoryError('CATEGORY_TAKEN');
+      const category = { id: 'custom', organizerId: owner, ...input };
+      this.items.push(category);
+      return category;
+    }
+    async update(owner: string, id: string, input: CategoryInput) {
+      const index = this.items.findIndex((item) => item.id === id && item.organizerId === owner);
+      if (index < 0) return null;
+      return (this.items[index] = { ...this.items[index]!, ...input });
+    }
+    async delete(owner: string, id: string) {
+      const before = this.items.length;
+      this.items = this.items.filter((item) => item.id !== id || item.organizerId !== owner);
+      return this.items.length < before;
+    }
+    async selectable(owner: string, name: string) { return this.items.some((item) => item.name.toLowerCase() === name.toLowerCase() && (!item.organizerId || item.organizerId === owner)); }
+  }
+  const categories = new CategoryService(new MemoryCategories());
+  const server = createServer(createApp(config, new AuthService(new MemoryUsers(), secret), undefined, undefined, undefined, undefined, categories));
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+  const base = `http://127.0.0.1:${address.port}`;
+  const organizerHeaders = { authorization: `Bearer ${signToken({ sub: organizerId, role: 'organizer' }, secret)}`, 'content-type': 'application/json' };
+  const customerHeaders = { authorization: `Bearer ${signToken({ sub: customerId, role: 'customer' }, secret)}`, 'content-type': 'application/json' };
+  try {
+    const body = JSON.stringify({ name: 'Robotics', imageUrl: 'https://example.com/robotics.jpg' });
+    assert.equal((await fetch(`${base}/event-categories`, { method: 'POST', headers: customerHeaders, body })).status, 403);
+    assert.equal((await fetch(`${base}/event-categories`, { method: 'POST', headers: organizerHeaders, body: JSON.stringify({ name: 'Unsafe', imageUrl: 'javascript:alert(1)' }) })).status, 400);
+    assert.equal((await fetch(`${base}/event-categories`, { method: 'POST', headers: organizerHeaders, body })).status, 201);
+    assert.equal((await fetch(`${base}/event-categories`, { method: 'POST', headers: organizerHeaders, body })).status, 409);
+    assert.equal((await fetch(`${base}/event-categories`)).status, 200);
+    assert.equal((await fetch(`${base}/event-categories/custom`, { method: 'PATCH', headers: customerHeaders, body })).status, 403);
+    assert.equal((await fetch(`${base}/event-categories/custom`, { method: 'PATCH', headers: organizerHeaders, body: JSON.stringify({ name: 'Robotics', imageUrl: 'data:image/png;base64,iVBORw0KGgo=' }) })).status, 200);
+    assert.equal((await fetch(`${base}/event-categories/custom`, { method: 'DELETE', headers: organizerHeaders })).status, 204);
+    assert.equal((await categories.list()).length, 1);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });
 
 class MemoryUsers implements UserRepository {

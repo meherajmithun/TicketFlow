@@ -86,7 +86,8 @@ type BrowseEvent = {
   seats: BrowseSeat[];
 };
 type SeatRowPlan = { label: string; category: string };
-const eventCategories = ["Concert", "Sports", "Stand-up", "Workshop", "Festival", "Conference", "Exhibition", "Competition", "Fundraiser", "Other"];
+type EventCategory = { id: string; organizerId: string | null; name: string; imageUrl: string };
+const fallbackCategories: EventCategory[] = ["Concert", "Sports", "Stand-up", "Workshop", "Festival", "Conference", "Exhibition", "Competition", "Fundraiser", "Other"].map((name) => ({ id: name, organizerId: null, name, imageUrl: `/images/categories/${name.toLowerCase()}.webp` }));
 
 // ─── Category SVG icons ───────────────────────────────────────
 const categoryIcons: Record<string, string> = {
@@ -183,7 +184,7 @@ async function apiRequest<T>(
       ...options.headers,
     },
   });
-  const payload = (await response.json()) as T & {
+  const payload = (response.status === 204 ? {} : await response.json()) as T & {
     error?: { message?: string };
   };
   if (!response.ok)
@@ -729,7 +730,79 @@ function BookingModal({
   );
 }
 
-function OrganizerDashboard({ session }: { session: Session }) {
+function OrganizerCategoryPanel({ session, categories, onChange }: { session: Session; categories: EventCategory[]; onChange: () => Promise<void> }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const owned = categories.filter((category) => category.organizerId === session.user.id);
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setFeedback("");
+    try {
+      await apiRequest(editingId ? `/event-categories/${editingId}` : "/event-categories", session.token, {
+        method: editingId ? "PATCH" : "POST",
+        body: JSON.stringify({ name: name.trim(), imageUrl: imageUrl.trim() }),
+      });
+      await onChange();
+      setName(""); setImageUrl(""); setEditingId(null);
+      setFeedback(editingId ? "Category updated." : "Category added.");
+    } catch (error) { setFeedback(error instanceof Error ? error.message : "Could not save category."); }
+    finally { setBusy(false); }
+  }
+
+  async function remove(category: EventCategory) {
+    if (!window.confirm(`Delete ${category.name}? Categories used by events cannot be deleted.`)) return;
+    setBusy(true); setFeedback("");
+    try {
+      await apiRequest(`/event-categories/${category.id}`, session.token, { method: "DELETE" });
+      await onChange();
+      if (editingId === category.id) { setEditingId(null); setName(""); setImageUrl(""); }
+      setFeedback("Category deleted.");
+    } catch (error) { setFeedback(error instanceof Error ? error.message : "Could not delete category."); }
+    finally { setBusy(false); }
+  }
+
+  return <div className="event-category-manager">
+    <div className="event-category-list">
+      {owned.length ? owned.map((category) => <article className="event-category-card" key={category.id}>
+        <img src={category.imageUrl} alt="" />
+        <div><strong>{category.name}</strong><small>Shown in customer browsing</small></div>
+        <div className="event-category-actions">
+          <button type="button" className="edit-button" onClick={() => { setEditingId(category.id); setName(category.name); setImageUrl(category.imageUrl); }}>Edit</button>
+          <button type="button" className="danger-button" disabled={busy} onClick={() => void remove(category)}>Delete</button>
+        </div>
+      </article>) : <p className="category-empty">No custom categories yet. Add one to give customers another way to find your events.</p>}
+    </div>
+    <form className="event-category-form" onSubmit={(event) => void save(event)}>
+      <h3>{editingId ? "Edit category" : "Add a category"}</h3>
+      <label htmlFor="custom-category-name">Category name</label>
+      <input id="custom-category-name" required maxLength={80} value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Robotics" />
+      <label htmlFor="custom-category-image">Category image URL</label>
+      <input id="custom-category-image" type="url" value={imageUrl.startsWith("data:") ? "" : imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://example.com/category.jpg" />
+      <label htmlFor="custom-category-upload">Or upload an image</label>
+      <input id="custom-category-upload" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 2_000_000) { setFeedback("Use a JPG, PNG, or WebP image under 2 MB."); return; }
+        const reader = new FileReader();
+        reader.onload = () => { setImageUrl(String(reader.result)); setFeedback(""); };
+        reader.onerror = () => setFeedback("Could not read that image.");
+        reader.readAsDataURL(file);
+      }} />
+      {imageUrl && <div className="event-category-preview"><img src={imageUrl} alt="Category image preview" /><span>{imageUrl.startsWith("data:") ? "Uploaded image ready" : "Image preview"}</span></div>}
+      <p className="field-hint">Use a landscape image. The category name stays readable over a dark image overlay.</p>
+      <button className="primary-button" disabled={busy || !name.trim() || !imageUrl}>{busy ? "Saving…" : editingId ? "Save category" : "Add category"}</button>
+      {editingId && <button type="button" className="edit-button" onClick={() => { setEditingId(null); setName(""); setImageUrl(""); }}>Cancel edit</button>}
+      {feedback && <p role="status" className="category-feedback">{feedback}</p>}
+    </form>
+  </div>;
+}
+
+function OrganizerDashboard({ session, eventCategories, refreshCategories }: { session: Session; eventCategories: EventCategory[]; refreshCategories: () => Promise<void> }) {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -763,7 +836,8 @@ function OrganizerDashboard({ session }: { session: Session }) {
   ]);
   const [seatsPerRow, setSeatsPerRow] = useState("12");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [activePanel, setActivePanel] = useState<"create" | "venues" | "drafts" | "running" | "delivered">("create");
+  const [activePanel, setActivePanel] = useState<"create" | "venues" | "categories" | "drafts" | "running" | "delivered">("create");
+  const availableCategories = eventCategories.filter((category) => !category.organizerId || category.organizerId === session.user.id);
   const [editingVenueId, setEditingVenueId] = useState<string | null>(null);
 
   async function loadDashboard() {
@@ -1005,13 +1079,14 @@ function OrganizerDashboard({ session }: { session: Session }) {
       <nav className="studio-nav" aria-label="Organizer workspace">
         <button className={activePanel === "create" ? "active" : ""} onClick={() => setActivePanel("create")}>Create event</button>
         <button className={activePanel === "venues" ? "active" : ""} onClick={() => setActivePanel("venues")}>Venues <span>{venues.length}</span></button>
+        <button className={activePanel === "categories" ? "active" : ""} onClick={() => setActivePanel("categories")}>Event categories <span>{eventCategories.filter((category) => category.organizerId === session.user.id).length}</span></button>
         <button className={activePanel === "drafts" ? "active" : ""} onClick={() => setActivePanel("drafts")}>Drafts <span>{events.filter((event) => event.status === "draft").length}</span></button>
         <button className={activePanel === "running" ? "active" : ""} onClick={() => setActivePanel("running")}>Running events <span>{events.filter((event) => event.status === "published" && new Date(event.endsAt) > new Date()).length}</span></button>
         <button className={activePanel === "delivered" ? "active" : ""} onClick={() => setActivePanel("delivered")}>Delivered events <span>{events.filter((event) => event.status === "published" && new Date(event.endsAt) <= new Date()).length}</span></button>
       </nav>
       {activePanel !== "create" && <section className="workspace-panel">
-        <div className="workspace-panel-heading"><div><span className="section-kicker">{activePanel === "venues" ? "YOUR PLACES" : activePanel === "drafts" ? "PRIVATE WORKSPACE" : activePanel === "running" ? "LIVE PROGRAMME" : "DELIVERED PROGRAMME"}</span><h2>{activePanel === "venues" ? "Venues" : activePanel === "drafts" ? "Draft events" : activePanel === "running" ? "Running events" : "Delivered events"}</h2>{activePanel === "drafts" && <p>Only you can see these events. Publish one when it is ready for customers.</p>}</div><span className="studio-rule" /></div>
-        {activePanel === "venues" ? <div className="venue-management"><div className="venue-management-list">{venues.map((venue) => <article className="managed-venue" key={venue.id}><div><strong>{venue.name}</strong><span>{venue.city} · {venue.address}</span></div><div><button className="edit-button" onClick={() => editVenue(venue)}>Edit</button><button className="danger-button" disabled={busy} onClick={() => void deleteVenue(venue)}>Delete</button></div></article>)}</div><form className="venue-form venue-management-form" onSubmit={createVenue}><span className="form-label">{editingVenueId ? "EDIT VENUE" : "ADD A VENUE"}</span><input required placeholder="Venue name" value={venueForm.name} onChange={(event) => setVenueForm({ ...venueForm, name: event.target.value })} /><input required placeholder="City" value={venueForm.city} onChange={(event) => setVenueForm({ ...venueForm, city: event.target.value })} /><input required placeholder="Address" value={venueForm.address} onChange={(event) => setVenueForm({ ...venueForm, address: event.target.value })} /><button className="outline-button" disabled={busy}>{editingVenueId ? "Save changes" : "Add venue"} <span>+</span></button></form></div> : <div className="managed-event-list">{events.filter((event) => activePanel === "drafts" ? event.status === "draft" : activePanel === "running" ? event.status === "published" && new Date(event.endsAt) > new Date() : event.status === "published" && new Date(event.endsAt) <= new Date()).map((event) => <article className="managed-event" key={event.id}><div className="event-date"><strong>{new Date(event.startsAt).toLocaleDateString(undefined, { day: "2-digit" })}</strong><span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: "short" }).toUpperCase()}</span></div><div className="managed-event-details"><span className={`event-status ${activePanel === "delivered" ? "past" : event.status}`}>{activePanel === "delivered" ? "delivered" : event.status}</span><h3>{event.name}</h3><p>{event.venue.name} · {event.venue.city}</p></div><div className="managed-event-stats"><strong>{event.seats.filter((seat) => seat.available).length}</strong><span>AVAILABLE / {event.seats.length}</span><button className="edit-button" onClick={() => { editEvent(event); setActivePanel("create"); }}>Manage event</button>{activePanel === "drafts" && <button className="publish-button" disabled={busy} onClick={() => void publishEvent(event.id)}>Publish</button>}</div></article>)}</div>}
+        <div className="workspace-panel-heading"><div><span className="section-kicker">{activePanel === "venues" ? "YOUR PLACES" : activePanel === "categories" ? "EVENT DISCOVERY" : activePanel === "drafts" ? "PRIVATE WORKSPACE" : activePanel === "running" ? "LIVE PROGRAMME" : "DELIVERED PROGRAMME"}</span><h2>{activePanel === "venues" ? "Venues" : activePanel === "categories" ? "Event categories" : activePanel === "drafts" ? "Draft events" : activePanel === "running" ? "Running events" : "Delivered events"}</h2>{activePanel === "drafts" && <p>Only you can see these events. Publish one when it is ready for customers.</p>}{activePanel === "categories" && <p>Create a category with an image, then choose it when you create an event. Built-in categories remain available.</p>}</div><span className="studio-rule" /></div>
+        {activePanel === "categories" ? <OrganizerCategoryPanel session={session} categories={eventCategories} onChange={refreshCategories} /> : activePanel === "venues" ? <div className="venue-management"><div className="venue-management-list">{venues.map((venue) => <article className="managed-venue" key={venue.id}><div><strong>{venue.name}</strong><span>{venue.city} · {venue.address}</span></div><div><button className="edit-button" onClick={() => editVenue(venue)}>Edit</button><button className="danger-button" disabled={busy} onClick={() => void deleteVenue(venue)}>Delete</button></div></article>)}</div><form className="venue-form venue-management-form" onSubmit={createVenue}><span className="form-label">{editingVenueId ? "EDIT VENUE" : "ADD A VENUE"}</span><input required placeholder="Venue name" value={venueForm.name} onChange={(event) => setVenueForm({ ...venueForm, name: event.target.value })} /><input required placeholder="City" value={venueForm.city} onChange={(event) => setVenueForm({ ...venueForm, city: event.target.value })} /><input required placeholder="Address" value={venueForm.address} onChange={(event) => setVenueForm({ ...venueForm, address: event.target.value })} /><button className="outline-button" disabled={busy}>{editingVenueId ? "Save changes" : "Add venue"} <span>+</span></button></form></div> : <div className="managed-event-list">{events.filter((event) => activePanel === "drafts" ? event.status === "draft" : activePanel === "running" ? event.status === "published" && new Date(event.endsAt) > new Date() : event.status === "published" && new Date(event.endsAt) <= new Date()).map((event) => <article className="managed-event" key={event.id}><div className="event-date"><strong>{new Date(event.startsAt).toLocaleDateString(undefined, { day: "2-digit" })}</strong><span>{new Date(event.startsAt).toLocaleDateString(undefined, { month: "short" }).toUpperCase()}</span></div><div className="managed-event-details"><span className={`event-status ${activePanel === "delivered" ? "past" : event.status}`}>{activePanel === "delivered" ? "delivered" : event.status}</span><h3>{event.name}</h3><p>{event.venue.name} · {event.venue.city}</p></div><div className="managed-event-stats"><strong>{event.seats.filter((seat) => seat.available).length}</strong><span>AVAILABLE / {event.seats.length}</span><button className="edit-button" onClick={() => { editEvent(event); setActivePanel("create"); }}>Manage event</button>{activePanel === "drafts" && <button className="publish-button" disabled={busy} onClick={() => void publishEvent(event.id)}>Publish</button>}</div></article>)}</div>}
       </section>}
       <div className={`studio-grid ${activePanel !== "create" ? "studio-grid-hidden" : ""}`}>
         <section className="studio-content">
@@ -1089,8 +1164,9 @@ function OrganizerDashboard({ session }: { session: Session }) {
               <div className="form-field">
                 <label htmlFor="event-category">Event category</label>
                 <select id="event-category" disabled={!venues.length} value={eventForm.category} onChange={(event) => setEventForm({ ...eventForm, category: event.target.value })}>
-                  {eventCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+                  {availableCategories.map((category) => <option key={category.id} value={category.name}>{category.name}</option>)}
                 </select>
+                <button type="button" className="category-manage-link" onClick={() => setActivePanel("categories")}>Manage categories and images →</button>
               </div>
               <div className="form-field">
                 <label htmlFor="event-end">End date & time <span>optional</span></label>
@@ -1647,6 +1723,7 @@ export function App() {
 
   const [query, setQuery] = useState("");
   const [publicEvents, setPublicEvents] = useState<BrowseEvent[]>([]);
+  const [eventCategories, setEventCategories] = useState<EventCategory[]>(fallbackCategories);
   const [homeEvents, setHomeEvents] = useState<BrowseEvent[]>([]);
   const [pastEvents, setPastEvents] = useState<BrowseEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
@@ -1695,6 +1772,13 @@ export function App() {
   const [profileMessage, setProfileMessage] = useState("");
   const [profileBusy, setProfileBusy] = useState(false);
   const [toast, setToast] = useState<{ message: string; type?: "error" } | null>(null);
+
+  async function refreshCategories() {
+    const payload = await publicRequest<{ categories: EventCategory[] }>("/event-categories");
+    setEventCategories(payload.categories);
+  }
+
+  useEffect(() => { void refreshCategories().catch(() => {}); }, []);
 
   useEffect(() => {
     if (session)
@@ -2103,7 +2187,7 @@ export function App() {
 
       <main id="top">
         {session?.user.role === "organizer" ? (
-          <OrganizerDashboard session={session} />
+          <OrganizerDashboard session={session} eventCategories={eventCategories} refreshCategories={refreshCategories} />
         ) : eventPage ? (
           <EventBookingPage event={eventPage} onBack={leaveBookEvent} onChooseSeats={() => setBookingEvent(eventPage)} />
         ) : (
@@ -2131,14 +2215,14 @@ export function App() {
                     {eventCategories.map((category) => (
                       <button
                         type="button"
-                        key={category}
-                        onClick={() => { setCategoryFilter(category); openEvents(); }}
+                        key={category.id}
+                        onClick={() => { setCategoryFilter(category.name); openEvents(); }}
                         className="category-tile-btn"
-                        data-category={category.toLowerCase()}
+                        data-category={category.name.toLowerCase()}
                       >
                         <img
                           className="category-tile-image"
-                          src={`/images/categories/${category.toLowerCase()}.webp`}
+                          src={category.imageUrl}
                           alt=""
                           loading="lazy"
                           decoding="async"
@@ -2146,9 +2230,9 @@ export function App() {
                         <span
                           className="category-tile-art"
                           aria-hidden="true"
-                          dangerouslySetInnerHTML={{ __html: categoryIcons[category] ?? categoryIcons.Other }}
+                          dangerouslySetInnerHTML={{ __html: categoryIcons[category.name] ?? categoryIcons.Other }}
                         />
-                        <strong>{category}</strong>
+                        <strong>{category.name}</strong>
                         <i aria-hidden="true" className="category-tile-arrow">↗</i>
                       </button>
                     ))}
@@ -2213,7 +2297,7 @@ export function App() {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                         <select aria-label="Event category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
                           <option value="All categories">Any type</option>
-                          {eventCategories.map((category) => <option key={category}>{category}</option>)}
+                          {eventCategories.map((category) => <option key={category.id} value={category.name}>{category.name}</option>)}
                         </select>
                         <svg className="chip-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                       </label>
