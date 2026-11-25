@@ -121,7 +121,12 @@ export class PgBookingRepository {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const expired = await client.query<{ id: string; status: 'held' | 'pending_payment' }>(`SELECT b.id, b.status FROM bookings b WHERE b.status IN ('held', 'pending_payment') AND EXISTS (SELECT 1 FROM event_seats s WHERE s.current_booking_id = b.id AND s.hold_expires_at <= now()) FOR UPDATE OF b SKIP LOCKED`);
+      const expired = await client.query<{ id: string; status: 'held' | 'pending_payment' }>(
+        `SELECT b.id, b.status FROM bookings b WHERE b.status IN ('held', 'pending_payment') AND (
+           EXISTS (SELECT 1 FROM event_seats s WHERE s.current_booking_id = b.id AND s.hold_expires_at <= now())
+           OR (b.created_at + interval '5 minutes' <= now() AND NOT EXISTS (SELECT 1 FROM event_seats s WHERE s.current_booking_id = b.id))
+         ) FOR UPDATE OF b SKIP LOCKED`,
+      );
       for (const booking of expired.rows) {
         await client.query(`UPDATE bookings SET status = 'expired', updated_at = now() WHERE id = $1`, [booking.id]);
         // Only clear seats whose hold has expired AND that have NOT been confirmed.

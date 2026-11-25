@@ -17,13 +17,18 @@ export class PgPaymentRepository {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const booking = await client.query<{ id: string; total_cents: number }>(`SELECT id, total_cents FROM bookings WHERE id = $1 AND customer_id = $2 AND status = 'pending_payment' FOR UPDATE`, [bookingId, customerId]);
-      if (!booking.rows[0]) {
-        const exists = await client.query('SELECT 1 FROM bookings WHERE id = $1 AND customer_id = $2', [bookingId, customerId]);
-        throw new PaymentError(exists.rowCount ? 'BOOKING_NOT_PAYABLE' : 'BOOKING_NOT_FOUND');
-      }
+      const booking = await client.query<{ id: string; total_cents: number; status: string }>(`SELECT id, total_cents, status FROM bookings WHERE id = $1 AND customer_id = $2 FOR UPDATE`, [bookingId, customerId]);
+      if (!booking.rows[0]) throw new PaymentError('BOOKING_NOT_FOUND');
       const existing = await client.query<PaymentAttempt>(`SELECT booking_id AS "bookingId", provider, idempotency_key AS "idempotencyKey", status, amount_cents AS "amountCents", provider_reference AS "providerReference" FROM payment_attempts WHERE booking_id = $1 AND idempotency_key = $2 FOR UPDATE`, [bookingId, idempotencyKey]);
       if (existing.rows[0]) { await client.query('COMMIT'); return { attempt: existing.rows[0], shouldCharge: false }; }
+      if (booking.rows[0].status !== 'pending_payment') throw new PaymentError('BOOKING_NOT_PAYABLE');
+      const seats = await client.query<{ current_booking_id: string | null; hold_expires_at: Date | null }>(
+        `SELECT s.current_booking_id, s.hold_expires_at FROM booking_seats bs
+         JOIN event_seats s ON s.id = bs.event_seat_id WHERE bs.booking_id = $1 ORDER BY s.id FOR UPDATE OF s`, [bookingId],
+      );
+      if (!seats.rowCount || seats.rows.some((seat) => seat.current_booking_id !== bookingId || !seat.hold_expires_at || seat.hold_expires_at.getTime() <= Date.now())) {
+        throw new PaymentError('BOOKING_NOT_PAYABLE');
+      }
       const inserted = await client.query<PaymentAttempt>(`INSERT INTO payment_attempts (booking_id, provider, idempotency_key, status, amount_cents) VALUES ($1, $2, $3, 'pending', $4) RETURNING booking_id AS "bookingId", provider, idempotency_key AS "idempotencyKey", status, amount_cents AS "amountCents", provider_reference AS "providerReference"`, [bookingId, provider, idempotencyKey, booking.rows[0].total_cents]);
       await client.query('COMMIT');
       return { attempt: inserted.rows[0]!, shouldCharge: true, context: { bookingId, amountCents: booking.rows[0].total_cents } };
@@ -35,12 +40,21 @@ export class PgPaymentRepository {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      const booking = await client.query<{ status: string }>('SELECT status FROM bookings WHERE id = $1 FOR UPDATE', [attempt.bookingId]);
+      if (!booking.rows[0]) throw new PaymentError('BOOKING_NOT_FOUND');
       const locked = await client.query<PaymentAttempt>(`SELECT booking_id AS "bookingId", provider, idempotency_key AS "idempotencyKey", status, amount_cents AS "amountCents", provider_reference AS "providerReference" FROM payment_attempts WHERE booking_id = $1 AND idempotency_key = $2 FOR UPDATE`, [attempt.bookingId, attempt.idempotencyKey]);
       if (!locked.rows[0]) throw new PaymentError('PAYMENT_NOT_FOUND');
       if (locked.rows[0].status !== 'pending') { await client.query('COMMIT'); return locked.rows[0]; }
-      const result = await client.query<PaymentAttempt>(`UPDATE payment_attempts SET status = $3, provider_reference = $4 WHERE booking_id = $1 AND idempotency_key = $2 RETURNING booking_id AS "bookingId", provider, idempotency_key AS "idempotencyKey", status, amount_cents AS "amountCents", provider_reference AS "providerReference"`, [attempt.bookingId, attempt.idempotencyKey, status, providerReference]);
-      if (status === 'succeeded') {
-        await client.query(`UPDATE bookings SET status = 'confirmed', updated_at = now() WHERE id = $1 AND status = 'pending_payment'`, [attempt.bookingId]);
+      const seats = await client.query<{ current_booking_id: string | null; hold_expires_at: Date | null }>(
+        `SELECT s.current_booking_id, s.hold_expires_at FROM booking_seats bs
+         JOIN event_seats s ON s.id = bs.event_seat_id WHERE bs.booking_id = $1 ORDER BY s.id FOR UPDATE OF s`, [attempt.bookingId],
+      );
+      const claimIsActive = booking.rows[0].status === 'pending_payment' && Boolean(seats.rowCount) &&
+        seats.rows.every((seat) => seat.current_booking_id === attempt.bookingId && seat.hold_expires_at && seat.hold_expires_at.getTime() > Date.now());
+      const finalStatus = status === 'succeeded' && !claimIsActive ? 'failed' : status;
+      const result = await client.query<PaymentAttempt>(`UPDATE payment_attempts SET status = $3, provider_reference = $4 WHERE booking_id = $1 AND idempotency_key = $2 RETURNING booking_id AS "bookingId", provider, idempotency_key AS "idempotencyKey", status, amount_cents AS "amountCents", provider_reference AS "providerReference"`, [attempt.bookingId, attempt.idempotencyKey, finalStatus, finalStatus === 'succeeded' ? providerReference : null]);
+      if (finalStatus === 'succeeded') {
+        await client.query(`UPDATE bookings SET status = 'confirmed', updated_at = now() WHERE id = $1`, [attempt.bookingId]);
         await client.query(`UPDATE event_seats SET hold_expires_at = NULL, confirmed_at = now() WHERE current_booking_id = $1`, [attempt.bookingId]);
         await client.query(`INSERT INTO booking_status_history (booking_id, from_status, to_status) VALUES ($1, 'pending_payment', 'confirmed')`, [attempt.bookingId]);
       }
