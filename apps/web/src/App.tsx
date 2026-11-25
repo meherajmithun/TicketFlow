@@ -164,9 +164,9 @@ function CountdownBadge({ startsAt }: { startsAt: string }) {
   );
 }
 
-function formatPrice(amount: number) {
-  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(
-    amount,
+function formatPrice(amountCents: number) {
+  return new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+    amountCents / 100,
   );
 }
 
@@ -754,7 +754,7 @@ function OrganizerDashboard({ session }: { session: Session }) {
     status: "draft",
   });
   const [categories, setCategories] = useState([
-    { name: "General", price: "2500" },
+    { name: "General", price: "25" },
   ]);
   const [rowPlan, setRowPlan] = useState<SeatRowPlan[]>([
     { label: "A", category: "General" },
@@ -848,7 +848,7 @@ function OrganizerDashboard({ session }: { session: Session }) {
         seatMap: { rows, seatsPerRow: Number(seatsPerRow) },
         categories: categories.map((category) => ({
           name: category.name.trim(),
-          basePriceCents: Number(category.price),
+          basePriceCents: Math.round(Number(category.price) * 100),
         })),
       };
       await apiRequest<{ event: OrganizerEvent }>(
@@ -906,7 +906,7 @@ function OrganizerDashboard({ session }: { session: Session }) {
     setCategories(
       event.categories.map((category) => ({
         name: category.name,
-        price: String(category.basePriceCents),
+        price: String(category.basePriceCents / 100),
       })),
     );
     setRowPlan(
@@ -1217,7 +1217,7 @@ function OrganizerDashboard({ session }: { session: Session }) {
                   </div>
                   <div className="category-input">
                     <label htmlFor={`category-price-${index}`}>
-                      Price / seat
+                      Price / seat (৳)
                     </label>
                     <input
                       id={`category-price-${index}`}
@@ -1225,8 +1225,9 @@ function OrganizerDashboard({ session }: { session: Session }) {
                       required
                       disabled={!venues.length}
                       min="0"
+                      step="0.01"
                       type="number"
-                      placeholder="5000"
+                      placeholder="50.00"
                       value={category.price}
                       onChange={(event) =>
                         setCategories(
@@ -1266,7 +1267,7 @@ function OrganizerDashboard({ session }: { session: Session }) {
                         <strong>{category.name}</strong>
                         <small>
                           {category.price
-                            ? formatPrice(Number(category.price))
+                            ? formatPrice(Math.round(Number(category.price) * 100))
                             : "—"}{" "}
                           / seat
                         </small>
