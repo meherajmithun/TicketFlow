@@ -1,54 +1,57 @@
-# Architecture
+# How TicketFlow is built
 
-## Request path and layers
+**Short explanation:** “The website sends a request to the API. The API checks it, applies the booking rules, and saves the result in PostgreSQL.”
+
+## The main path
 
 ```mermaid
 flowchart LR
-  Browser[React and Vite web app] --> HTTP[Express routes and validation]
-  HTTP --> Auth[Auth service]
-  HTTP --> Events[Event service]
-  HTTP --> Booking[Booking service]
-  HTTP --> Payment[Payment service]
-  HTTP --> Notice[Notification service]
-  Booking --> Rules[Status, hold, pricing, refund rules]
-  Auth --> Repos[Repository interfaces and PostgreSQL adapters]
-  Events --> Repos
-  Booking --> Repos
-  Payment --> Repos
-  Notice --> Repos
-  Repos --> DB[(PostgreSQL)]
-  Payment --> Providers[Mock Stripe and PayPal]
-  Notice --> Channels[In-app store and console email]
+  Browser[React website] --> Route[Express route]
+  Route --> Service[Service: what should happen]
+  Service --> Rules[Domain: business rules]
+  Service --> Repository[Repository: database queries]
+  Repository --> Database[(PostgreSQL)]
 ```
 
-`server.ts` loads environment configuration, creates the PostgreSQL pool, and connects the repositories, services, and Express app. `app.ts` validates requests with Zod, checks bearer tokens and roles, routes calls to services, and returns consistent errors. Public registration creates customers; organizer accounts are provisioned from server environment variables. `db:migrate` applies each SQL migration once and records it in `schema_migrations`.
+- `apps/web/src/App.tsx` shows events, seats, checkout, bookings, and the organizer studio.
+- `apps/api/src/app.ts` defines API routes, checks inputs with Zod, and checks user roles.
+- Services in `apps/api/src/` handle actions such as creating an event or holding a seat.
+- `apps/api/src/domain/` contains rules for booking status, hold time, pricing, and refunds.
+- Repositories read and write PostgreSQL. `server.ts` connects the pieces and applies missing migrations before the API starts.
 
-The browser supports discovery, event details, seat selection, mock checkout, booking history, notifications, and an organizer studio. Its current UI is concentrated in `apps/web/src/App.tsx`; splitting that file into smaller components is a maintainability improvement, not a separate runtime layer.
+**Example:** When a customer clicks **Hold seats**, the website calls `POST /bookings/holds`. The route checks the customer token and input. The booking service asks the repository to claim the seats in one database transaction. The API returns either the hold or a “seat unavailable” error.
 
-## Design patterns and why they fit
+## Why these design patterns are used
 
-| Pattern | Where | Reason |
+| Pattern | Simple meaning | TicketFlow example |
 | --- | --- | --- |
-| State machine | `domain/booking.ts` | Centralizes allowed booking transitions so invalid lifecycle changes can be rejected. |
-| Strategy | `domain/pricing.ts` | Lets the organizer select base or early-bird pricing without adding branches to seat-hold logic. |
-| Repository | Auth and event service interfaces; PostgreSQL adapters | Keeps application decisions separate from SQL and lets HTTP tests use in-memory repositories. |
-| Provider adapter | `payment/providers.ts` | Both mock payment providers share one `PaymentProvider` interface. |
-| Channel adapter | `notification/channels.ts` | Console email and in-app persistence can be extended without changing booking rules. |
+| State machine | A list of allowed status changes | `domain/booking.ts` prevents a cancelled booking from becoming confirmed. |
+| Strategy | Choose one of several rules | `domain/pricing.ts` chooses base or early-bird pricing for an event. |
+| Repository | Keep SQL separate from other code | Auth and event services can use PostgreSQL in production and simple in-memory repositories in tests. |
+| Provider interface | Give payment options the same shape | Mock Stripe and mock PayPal can be switched without changing booking rules. |
+| Channel interface | Send one message in different ways | In-app storage and console email both handle booking notifications. |
 
-## SOLID in this codebase
+## SOLID, in plain words
 
-- **Single responsibility:** HTTP parsing and response handling live in `app.ts`; pricing, refund, and status rules live in separate domain modules; SQL access lives in repositories. The large web `App.tsx` is an acknowledged exception to improve.
-- **Open/closed:** New pricing strategies can be registered in the pricing map; new payment providers and notification channels implement the existing interfaces.
-- **Liskov substitution:** `AuthService` and `EventService` can use their in-memory test repositories or PostgreSQL implementations through the same contracts. Payment providers return the same charge result shape.
-- **Interface segregation:** `UserRepository`, `EventRepository`, `PaymentProvider`, and `NotificationChannel` expose the operations their callers need, rather than one shared service interface.
-- **Dependency inversion:** `AuthService` and `EventService` accept repository interfaces, while payment and notification services accept provider/channel interfaces. `server.ts` chooses their concrete implementations at startup. Booking, payment, and notification persistence still use concrete PostgreSQL classes and could be decoupled further.
+| Principle | What to say | Example |
+| --- | --- | --- |
+| Single responsibility | Give each part one main job. | Routes handle HTTP; domain files handle rules; repositories handle SQL. |
+| Open/closed | Add a new option without rewriting the core flow. | Add a payment provider or pricing strategy through an existing interface. |
+| Liskov substitution | One implementation can replace another if both follow the same contract. | Tests swap an in-memory user or event repository for PostgreSQL. |
+| Interface segregation | Keep interfaces small and focused. | `PaymentProvider` and `NotificationChannel` expose only the operations their callers need. |
+| Dependency inversion | Business logic should depend on contracts, not hard-coded tools. | Services receive repository or provider interfaces; `server.ts` supplies the real implementations. |
 
-## Booking and concurrent seat claims
+Some booking, payment, and notification persistence still uses concrete PostgreSQL classes. The large web `App.tsx` could also be split into smaller components. These are honest areas to improve.
 
-`event_seats.current_booking_id` identifies the current seat claim. `PgBookingRepository.holdSeats` locks requested seat rows in stable ID order inside one PostgreSQL transaction. It rejects any active hold or confirmed seat, creates the booking and priced booking-seat rows, updates every seat claim, and commits. Another customer trying the same seat waits for the lock and then sees it unavailable. A PostgreSQL integration test exercises this race.
+## How double booking is stopped
 
-Holds last five minutes. A timer calls `expireHolds` every 30 seconds to mark expired bookings and free their seats. A new hold can also replace an expired seat immediately; cleanup handles the old booking after its original five-minute window. `booking_status_history` records lifecycle changes.
+1. A seat's current claim is stored in `event_seats.current_booking_id`.
+2. `PgBookingRepository.holdSeats` starts a PostgreSQL transaction and locks the selected seat rows in a consistent order.
+3. It checks whether a hold or confirmed booking already owns each seat. If so, it rejects the request.
+4. Otherwise, it saves the booking, seat prices, and claims together, then commits. A competing request waits for the lock and sees the updated claim.
 
-Payment attempts are keyed by `(booking_id, idempotency_key)`. A retry returns the saved attempt. Payment preparation checks the pending booking and its active seat claims; completion locks the booking and its seats again before confirming it. If the claim expired or changed while a mock provider call was in progress, the attempt fails and no confirmation is written. The mock providers do not transfer money. A real processor would require signed webhooks, reconciliation, and actual refunds before production use.
+Holds last five minutes. Cleanup runs every 30 seconds to mark old holds as expired and release their seats. A new customer can also claim a seat immediately after its hold time has passed. `booking_status_history` records status changes. A PostgreSQL integration test sends two requests for the same seat and checks that only one succeeds.
 
-Public browsing exposes only published events. Seat holds require a published event whose end time is still in the future. Organizer event changes check venue and event ownership; customer booking, payment, and notification routes check customer identity.
+Payment requests have an **idempotency key**: repeating the same request returns the saved attempt. Before a mock payment confirms a booking, the API checks that the booking still owns its seats. The mock providers do not move money. A real payment service would need verified webhooks and payment reconciliation.
+
+Public browsing shows published events only. Organizer routes check event and venue ownership. Customer routes check the booking owner.
