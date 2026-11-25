@@ -5,7 +5,7 @@ import { verifyToken } from './token.js';
 
 export const registerSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),
-  password: z.string().min(5).max(128),
+  password: z.string().min(12).max(128),
   role: z.literal('customer').optional(),
 }).strict();
 

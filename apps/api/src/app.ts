@@ -11,6 +11,7 @@ import { BookingError, BookingService } from './booking/service.js';
 import { paySchema } from './payment/http.js';
 import { PaymentError, PaymentService } from './payment/service.js';
 import { NotificationService } from './notification/service.js';
+import { createRateLimiter } from './rate-limit.js';
 
 export function createApp(config: AppConfig, auth: AuthService, events?: EventService, bookings?: BookingService, payments?: PaymentService, notifications?: NotificationService) {
   const app = express();
@@ -35,7 +36,8 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     response.json({ status: 'ok', service: 'ticketflow-api' });
   });
 
-  app.post('/auth/register', async (request, response, next) => {
+  const authRateLimit = createRateLimiter({ limit: 10, windowMs: 15 * 60_000 });
+  app.post('/auth/register', authRateLimit, async (request, response, next) => {
     try {
       const input = registerSchema.parse(request.body);
       response.status(201).json(await auth.register(input));
@@ -44,7 +46,7 @@ export function createApp(config: AppConfig, auth: AuthService, events?: EventSe
     }
   });
 
-  app.post('/auth/login', async (request, response, next) => {
+  app.post('/auth/login', authRateLimit, async (request, response, next) => {
     try {
       const input = loginSchema.parse(request.body);
       response.json(await auth.login(input));

@@ -25,7 +25,7 @@ In another terminal:
 npm run dev:web
 ```
 
-Create a local `ticketflow` database and set `DATABASE_URL` and a unique `AUTH_TOKEN_SECRET` of at least 32 characters in `.env` before running the migration. Set `ORGANIZER_EMAIL` and `ORGANIZER_PASSWORD` in the server environment to provision the organizer account on startup; the password must be at least 12 characters and is stored as a salted hash. Never commit the real credentials. Existing organizer credentials are not overwritten. Open `http://localhost:5173`. The API health endpoint is `http://localhost:4000/health`.
+Create a local `ticketflow` database and set `DATABASE_URL` and a unique `AUTH_TOKEN_SECRET` of at least 32 characters in `.env` before running the migration. Set `ORGANIZER_EMAIL` and `ORGANIZER_PASSWORD` in the server environment to provision the organizer account on startup; passwords must be at least 12 characters and are stored as salted hashes. Customer registration enforces the same minimum. Never commit real credentials. Existing organizer credentials are not overwritten. Open `http://localhost:5173`. The API health endpoint is `http://localhost:4000/health`.
 
 The migration runner records applied SQL files in `schema_migrations`, so running `npm run db:migrate` again is safe. Run it after pulling changes to apply the event details and discovery migrations (`002` and `003`).
 
@@ -63,7 +63,7 @@ Organizer routes require an organizer bearer token. An organizer can only list a
 | `GET /notifications` | List the authenticated customer's in-app notifications |
 | `POST /notifications/:notificationId/read` | Mark an in-app notification as read |
 
-Tokens expire after 12 hours. Passwords are stored as salted scrypt hashes. Organizer and customer routes use role guards, and organizer event operations enforce ownership. A booking reaches `confirmed` only after a successful mock payment provider call; there is no direct confirmation endpoint.
+Tokens expire after 12 hours. Passwords are stored as salted scrypt hashes. Organizer and customer routes use role guards, and organizer event operations enforce ownership. Public login and registration are limited to 10 requests per IP per 15 minutes per endpoint (per-process memory; use a shared store for multiple API replicas). A booking reaches `confirmed` only after a successful **mock** payment provider call; there is no direct confirmation endpoint. The Stripe and PayPal adapters are simulations and must not be used to accept real money. The email notification adapter logs to the API console; it does not send email.
 
 Organizer event forms accept a public poster image URL or a JPG, PNG, or WebP upload under 2 MB, a description, and one highlight per line. Uploaded images are stored with the event as data URLs in PostgreSQL, so production image hosting is recommended for larger catalogs. Forms also accept an event category and optional end time; omitted end times default to three hours after the start. Public search, details, and seat holds never expose drafts. The customer account drawer shows confirmed tickets and booking history, including cancellation where permitted.
 
@@ -82,9 +82,10 @@ CI runs these checks on every push and pull request, starts PostgreSQL for migra
 
 - Frontend: https://ticket-flow-tau-drab.vercel.app/
 - API health: https://ticketflow-production-086091eb.up.railway.app/health
-- Vercel builds `apps/web` and needs `VITE_API_URL=https://ticketflow-production-086091eb.up.railway.app` in its Production and Preview environments.
+- Vercel builds `apps/web` and needs `VITE_API_URL=https://ticketflow-production-086091eb.up.railway.app` in its Production and Preview environments. Preview deployments must use an API whose `CLIENT_ORIGIN` allows that preview origin.
 - Railway runs the API with `DATABASE_URL`, `AUTH_TOKEN_SECRET`, and `CLIENT_ORIGIN=https://ticket-flow-tau-drab.vercel.app`. Set `ORGANIZER_EMAIL` and `ORGANIZER_PASSWORD` together if the organizer account must be provisioned.
 - Apply `npm run db:migrate` against the Railway database before serving a release that changes the schema. Keep database URLs and secrets in Railway, never in Git.
+- Before accepting real customers, configure a real payment processor with signed webhook verification and reconciliation, a transactional email provider, shared rate-limit storage for multiple API replicas, and object storage for uploaded posters. Poster uploads currently become base64 data URLs in PostgreSQL; this is suitable only for the small demo catalog.
 - Connect both services to this GitHub repository with `main` as their production branch. Vercel creates preview deployments for feature branches; merging a pull request into `main` deploys production. The production smoke-check workflow then checks the public frontend and API.
 
 ## Repository layout
@@ -107,5 +108,7 @@ PROPOSAL_PLAN.md     Requirement coverage and next build order
 | Organizer demo credentials | Pending seeded demo accounts |
 | Customer demo credentials | Pending seeded demo accounts |
 | Video walkthrough | Pending completion |
+
+The hosted deployment is a demonstration environment: payment and email integrations are mocked. Do not enter real payment details. Create demo accounts through the organizer environment variables and customer registration; never place passwords in this repository.
 
 Development happens on feature branches and reaches `main` through pull requests. Commit messages follow Conventional Commits. Do not push directly to `main`.
