@@ -2,6 +2,13 @@ import { z } from 'zod';
 
 const uuid = z.string().uuid();
 const categorySchema = z.object({ name: z.string().trim().min(1).max(80), basePriceCents: z.number().int().nonnegative() }).strict();
+export const eventCategorySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  imageUrl: z.union([
+    z.string().trim().url().max(2048).refine((value) => ['http:', 'https:'].includes(new URL(value).protocol), 'Image URL must use HTTP or HTTPS'),
+    z.string().regex(/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/).max(2_800_000),
+  ]),
+}).strict();
 
 export const venueSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -19,7 +26,7 @@ export const createEventSchema = z.object({
     z.literal(''),
   ]).default(''),
   highlights: z.string().trim().max(3000).default(''),
-  category: z.enum(['Concert', 'Sports', 'Stand-up', 'Workshop', 'Festival', 'Conference', 'Exhibition', 'Competition', 'Fundraiser', 'Other']).default('Other'),
+  category: z.string().trim().min(1).max(80).default('Other'),
   startsAt: z.string().datetime({ offset: true }).refine((value) => new Date(value).getTime() > Date.now(), 'Event must be in the future'),
   endsAt: z.string().datetime({ offset: true }).optional(),
   pricingStrategy: z.enum(['base', 'early_bird']).default('base'),
